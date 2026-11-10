@@ -73,7 +73,7 @@ class DemoSeeder extends Seeder
             'juan' => 'Juan A. Dela Cruz', 'maria' => 'Maria L. Mendoza', 'courier' => 'Swift Courier Services',
         ])->map(fn ($n) => Payee::firstOrCreate(['name' => $n]));
         $bir = Payee::firstOrCreate(['name' => 'Bureau of Internal Revenue'], [
-            'default_payee_line' => 'BPI Ayala II Branch FAO Bureau of Internal Revenue IFO Sample Trading Corporation TIN 000-000-000-000',
+            'default_payee_line' => 'BPI Ayala II Branch FAO Bureau of Internal Revenue',
         ]);
 
         $this->cheques = app(ChequeService::class);
@@ -177,7 +177,7 @@ class DemoSeeder extends Seeder
         $cat = fn ($n) => ReceiptCategory::where('name', $n)->value('id');
         $pdf = function (string $no, string $vendor, string $amount) {
             $path = tempnam(sys_get_temp_dir(), 'rcpt').'.pdf';
-            file_put_contents($path, Pdf::loadHTML("<h2 style='font-family:sans-serif'>Official Receipt No. {$no}</h2><p style='font-family:sans-serif'>Received from Sample Trading Corporation<br>Vendor: {$vendor}<br>Amount: PHP {$amount}<br><br><i>Sample document for demonstration only.</i></p>")->output());
+            file_put_contents($path, Pdf::loadHTML("<h2 style='font-family:sans-serif'>Official Receipt No. {$no}</h2><p style='font-family:sans-serif'>Vendor: {$vendor}<br>Amount: PHP {$amount}<br><br><i>Sample document for demonstration only.</i></p>")->output());
 
             return new UploadedFile($path, "receipt-{$no}.pdf", 'application/pdf', null, true);
         };

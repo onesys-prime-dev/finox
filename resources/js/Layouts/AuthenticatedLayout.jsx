@@ -2,6 +2,7 @@ import { Link, router, useForm, usePage } from '@inertiajs/react';
 import { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import Icon from '@/Components/Icon';
+import Logo from '@/Components/Logo';
 import Modal from '@/Components/Modal';
 import StatusBadge from '@/Components/StatusBadge';
 
@@ -62,12 +63,8 @@ export default function AuthenticatedLayout({ children }) {
 
     const sidebar = (
         <div className="flex h-full flex-col bg-ink-900">
-            <div className="flex h-16 items-center gap-2.5 px-5">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-600 text-sm font-bold text-white">F</div>
-                <div className="leading-tight">
-                    <p className="text-sm font-semibold tracking-wide text-white">{app.name}</p>
-                    <p className="max-w-[10rem] truncate text-[11px] text-slate-400">{app.org}</p>
-                </div>
+            <div className="flex h-16 items-center px-5">
+                <Logo name={app.name} sub={app.org} />
             </div>
             <nav className="scroll-thin flex-1 space-y-0.5 overflow-y-auto px-3 py-2">
                 {NAV.map((n, i) => {

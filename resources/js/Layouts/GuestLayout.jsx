@@ -1,4 +1,5 @@
 import { usePage } from '@inertiajs/react';
+import Logo from '@/Components/Logo';
 
 export default function GuestLayout({ children }) {
     const { app } = usePage().props;
@@ -7,9 +8,8 @@ export default function GuestLayout({ children }) {
             <div className="relative hidden flex-col justify-between overflow-hidden bg-ink-900 p-12 text-white lg:flex">
                 <div className="absolute -right-24 -top-24 h-80 w-80 rounded-full bg-brand-600/30 blur-3xl" />
                 <div className="absolute -bottom-32 -left-16 h-96 w-96 rounded-full bg-brand-500/20 blur-3xl" />
-                <div className="relative flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-600 text-lg font-bold">F</div>
-                    <span className="text-lg font-semibold tracking-wide">{app?.name ?? 'FINOX'}</span>
+                <div className="relative">
+                    <Logo name={app?.name ?? 'FINOX'} size="lg" />
                 </div>
                 <div className="relative max-w-md">
                     <h2 className="text-3xl font-semibold leading-tight text-white">Cheques, receipts and records — in one calm place.</h2>
