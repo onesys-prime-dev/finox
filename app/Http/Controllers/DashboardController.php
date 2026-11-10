@@ -10,6 +10,7 @@ use App\Models\PrintTemplate;
 use App\Models\Receipt;
 use App\Models\User;
 use App\Support\Money;
+use App\Support\Settings;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Inertia\Inertia;
@@ -60,14 +61,18 @@ class DashboardController extends Controller
         if ($u->hasPermission('print.print')) {
             $add('Ready to print', Cheque::where('status', 'prepared')->count(), route('printing.index'), 'purple');
             $add('Awaiting confirmation', PrintJob::where('status', 'initiated')->when(! $u->isAdmin(), fn ($x) => $x->where('user_id', $u->id))->count(), route('printing.index'), 'warn');
-            $add('Failed prints', PrintJob::whereIn('status', ['failed', 'partial'])->count(), route('printing.history', ['status' => 'failed']), 'danger');
+            if (Settings::get('notify_failed_prints', true)) {
+                $add('Failed prints', PrintJob::whereIn('status', ['failed', 'partial'])->count(), route('printing.history', ['status' => 'failed']), 'danger');
+            }
         }
         if ($u->hasPermission('cheques.release')) {
             $add('To release', Cheque::where('status', 'printed')->count(), route('cheques.index', ['status' => 'printed']), 'warn');
         }
         if ($u->hasPermission('cheques.clear')) {
             $add('For clearing', Cheque::whereIn('status', ['released', 'for_clearing'])->count(), route('cheques.index', ['status' => 'outstanding']), 'warn');
-            $add('Stale review', Cheque::whereNotNull('stale_flagged_at')->whereIn('status', ['released', 'for_clearing'])->count(), route('cheques.index', ['flagged' => 1]), 'danger');
+            if (Settings::get('notify_stale_cheques', true)) {
+                $add('Stale review', Cheque::whereNotNull('stale_flagged_at')->whereIn('status', ['released', 'for_clearing'])->count(), route('cheques.index', ['flagged' => 1]), 'danger');
+            }
         }
 
         return $q;

@@ -31,7 +31,7 @@ class BackupCommand extends Command
             return self::FAILURE;
         }
 
-        $bin = $this->option('mysqldump') ?: env('MYSQLDUMP_PATH', 'mysqldump');
+        $bin = $this->option('mysqldump') ?: config('finox.mysqldump_path');
         $cmd = [$bin, '--single-transaction', '--routines', '--default-character-set=utf8mb4', "--host={$db['host']}", "--port={$db['port']}",
             "--user={$db['username']}", '--result-file='.$sql, $db['database']];
         $env = $db['password'] ? ['MYSQL_PWD' => $db['password']] : [];
