@@ -3,8 +3,6 @@
 namespace Database\Seeders;
 
 use App\Models\Bank;
-use App\Models\BankAccount;
-use App\Models\Payee;
 use App\Models\Permission;
 use App\Models\PrintTemplate;
 use App\Models\ReceiptCategory;
@@ -33,18 +31,7 @@ class DatabaseSeeder extends Seeder
         $this->templates();
         $this->banks();
 
-        // Payees taken from the legacy Excel check workbook (review in Payees before use).
-        foreach ([
-            'Cythia Domdom', 'Alvin Valerio', 'Philippine Heart Center', 'Tommy B. Teofilo',
-            'Eastern Telecommunications Philippines Inc.', 'Barklane Realty Corp', 'Cityland Herrera Tower, Inc.',
-            'Luvican Management Inc.', 'Joyce Vel M. Formon', 'Juris Judeial T. Masiglat', 'Elmer Opina',
-            'Wilson John S. Gimena',
-        ] as $p) {
-            Payee::firstOrCreate(['name' => $p]);
-        }
-        Payee::firstOrCreate(['name' => 'Bureau of Internal Revenue'], [
-            'default_payee_line' => 'BPI Ayala II Branch FAO Bureau of Internal Revenue IFO [Taxpayer Name] TIN [000-000-000-000]',
-        ]);
+        // Payees and bank accounts are entered by users in the app; nothing is imported from the legacy workbook.
     }
 
     private function permissionsAndRoles(): void
@@ -117,15 +104,7 @@ class DatabaseSeeder extends Seeder
 
     private function banks(): void
     {
-        $bdo = Bank::firstOrCreate(['name' => 'BDO Unibank']);
+        Bank::firstOrCreate(['name' => 'BDO Unibank']);
         Bank::firstOrCreate(['name' => 'BPI']);
-        BankAccount::firstOrCreate(['bank_id' => $bdo->id, 'account_number' => '011378005308'], [
-            'branch' => 'BGC - 9th Avenue Branch',
-            'account_name' => 'ECOVIS FINTAX PHILIPPINES CO',
-            'account_reference' => 'BRSTN 01053-580-8',
-            'cheque_format' => 'BDO Corporate Check Printing',
-            'print_template_id' => PrintTemplate::where('kind', 'cheque')->value('id'),
-            'starting_number' => '0000094658',
-        ]);
     }
 }

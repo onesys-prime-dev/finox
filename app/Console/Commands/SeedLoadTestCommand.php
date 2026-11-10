@@ -24,7 +24,7 @@ class SeedLoadTestCommand extends Command
         }
         $n = (int) $this->argument('count');
         $user = User::first() ?? abort(1, 'Run db:seed first.');
-        $acct = BankAccount::first();
+        $acct = BankAccount::first() ?? abort(1, 'Add a bank account in the app first.');
         $payees = collect(range(1, 300))->map(fn ($i) => ['name' => "Load Test Payee {$i} Corporation", 'created_at' => now(), 'updated_at' => now()]);
         Payee::insert($payees->all());
         $ids = Payee::pluck('id')->all();

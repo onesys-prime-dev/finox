@@ -103,9 +103,9 @@ Payment Advice region prints: payee, amount, purpose, reference, prepared by, da
 | 7 | Register, reports, dashboard | Register view, saved filters, RPT, queued exports, role work queues | Dashboard totals = register = reports |
 | 8 | QA & rollout | Seed 50k records, perf checks, backup + restore test, role guides, 2-week pilot | Restore passes; users sign off |
 
-## 8. Seed data from the reference files
+## 8. Reference files (format only)
 
-From `check format w date and formula.xlsm` (18 sheets): create the initial payee list and candidate bank accounts (BDO, BPI, BIR-via-BPI, and payee-specific sheets such as WILSON/ELMER/JOYCE/JURIS), plus a `CASH` payee. Review the list with the user before seeding; do not import blindly.
+Decision 2026-11-10: use the reference files for **format only**. `check format w date and formula.xlsm` is not a data source: no payees or bank accounts are imported from it. Users enter payees and bank accounts in the app (Payees, Admin > Bank accounts).
 From `Check Voucher.pdf`: BDO template background and field positions (measured in Phase 1/3).
 
 ## 9. Performance and quality targets
@@ -142,4 +142,4 @@ Pages < 2 s; search < 1 s at 100k records; single cheque PDF < 3 s; batch of 50 
   * **Retention:** documents and activity logs stay in the live system for 10 years (suits BIR/bank record-keeping; confirm with the accountant). After that they are **archived, never deleted**: they leave the default lists and search but stay retrievable (an "Archived" filter for authorised roles). The archive job itself is not built yet; until it is, nothing is removed.
   * **Receipt tax:** keep one amount plus an optional rate. No VAT/withholding breakdown for now.
   * **2FA:** not needed while FINOX stays on the internal network. Revisit before exposing it outside.
-* **Seed payees** came from the legacy workbook and should be reviewed.
+* **No seeded payees or bank accounts.** The seeder creates only roles, permissions, receipt categories, bank names (BDO, BPI) and the print templates; add real payees and accounts in the app.
