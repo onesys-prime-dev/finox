@@ -138,5 +138,8 @@ Pages < 2 s; search < 1 s at 100k records; single cheque PDF < 3 s; batch of 50 
 ### Not done / deliberate gaps
 * **Excel (.xlsx) and server-side PDF export:** CSV and browser "Save as PDF" are provided. Native XLSX/DomPDF need packages that could not be installed offline — add `openspout/openspout` / `barryvdh/laravel-dompdf` later if wanted.
 * **Real printer calibration** cannot be done in software; follow OPERATIONS.md §4 on actual stock. The BDO field positions come from the scan and may need a few tenths of a millimetre of adjustment.
-* **Open decisions** still worth confirming: retention period for documents/logs, receipt tax detail (currently one amount + optional rate), 2FA if ever exposed beyond the internal network.
+* **Decisions made 2026-11-10:**
+  * **Retention:** documents and activity logs stay in the live system for 10 years (suits BIR/bank record-keeping; confirm with the accountant). After that they are **archived, never deleted**: they leave the default lists and search but stay retrievable (an "Archived" filter for authorised roles). The archive job itself is not built yet; until it is, nothing is removed.
+  * **Receipt tax:** keep one amount plus an optional rate. No VAT/withholding breakdown for now.
+  * **2FA:** not needed while FINOX stays on the internal network. Revisit before exposing it outside.
 * **Seed payees** came from the legacy workbook and should be reviewed.
