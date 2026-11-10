@@ -7,7 +7,7 @@ import { useFmt } from '@/lib/format';
 
 const SUBJECT_ROUTE = { cheque: 'cheques.show', receipt: 'receipts.show' };
 
-export default function ActivityLog({ logs, filters, modules, users }) {
+export default function ActivityLog({ logs, filters, modules, users, retentionYears }) {
     const fmt = useFmt();
     const [f, apply] = useFilters('activity.index', filters);
     const [open, setOpen] = useState(null);
@@ -22,6 +22,7 @@ export default function ActivityLog({ logs, filters, modules, users }) {
                     <select className="input !w-auto" value={f.user_id ?? ''} onChange={(e) => apply({ ...f, user_id: e.target.value }, true)}><option value="">Any user</option>{users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}</select>
                     <input type="date" className="input !w-auto" value={f.from ?? ''} onChange={(e) => apply({ ...f, from: e.target.value }, true)} aria-label="From" />
                     <input type="date" className="input !w-auto" value={f.to ?? ''} onChange={(e) => apply({ ...f, to: e.target.value }, true)} aria-label="To" />
+                    <label className="flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" checked={!!f.archived} onChange={(e) => apply({ ...f, archived: e.target.checked ? 1 : '' }, true)} /> Include archived (older than {retentionYears} yrs)</label>
                 </div>
                 <div className="overflow-x-auto"><table className="tbl"><thead><tr><th>When</th><th>User</th><th>Module</th><th>Description</th><th className="w-10" /></tr></thead>
                     <tbody>{logs.data.map((l) => (

@@ -31,6 +31,7 @@ export default function Settings({ settings, categories }) {
                 <Section title="Documents & cheques">
                     <Field label="Upload limit (MB)" error={e.max_upload_mb} hint="Allowed types: PDF, JPG, JPEG, PNG">{n('max_upload_mb')}</Field>
                     <Field label="Stale period (days)" error={e.stale_days} hint="Released cheques older than this are flagged daily for a user to review.">{n('stale_days')}</Field>
+                    <Field label="Keep records live for (years)" error={e.retention_years} hint="Older documents and activity-log entries move to Archived: hidden from default lists, never deleted.">{n('retention_years')}</Field>
                 </Section>
                 <Section title="Printing defaults" desc="Added to every print on top of each template's own offset. Fine-tune per computer in the calibration screen.">
                     <Field label="Default shift X (mm)" error={e.print_offset_x_mm}>{n('print_offset_x_mm', { step: 0.1 })}</Field>

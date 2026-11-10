@@ -136,10 +136,10 @@ Pages < 2 s; search < 1 s at 100k records; single cheque PDF < 3 s; batch of 50 
 | 8 QA & rollout | Backend/performance done | 30 automated tests; 50k-record timings in OPERATIONS.md. **Still to do by people:** real-stock calibration, backup restore drill, 2-week pilot, role walkthroughs |
 
 ### Not done / deliberate gaps
-* **Excel (.xlsx) and server-side PDF export:** CSV and browser "Save as PDF" are provided. Native XLSX/DomPDF need packages that could not be installed offline — add `openspout/openspout` / `barryvdh/laravel-dompdf` later if wanted.
+* **Exports:** CSV and Excel (.xlsx, via `openspout/openspout`) for every report and the register; PDF is the browser's "Save as PDF" from the print view. Server-side PDF (DomPDF) is not installed. Exports run directly (streamed), not as queued jobs; 50k-record timings are in OPERATIONS.md.
 * **Real printer calibration** cannot be done in software; follow OPERATIONS.md §4 on actual stock. The BDO field positions come from the scan and may need a few tenths of a millimetre of adjustment.
 * **Decisions made 2026-11-10:**
-  * **Retention:** documents and activity logs stay in the live system for 10 years (suits BIR/bank record-keeping; confirm with the accountant). After that they are **archived, never deleted**: they leave the default lists and search but stay retrievable (an "Archived" filter for authorised roles). The archive job itself is not built yet; until it is, nothing is removed.
+  * **Retention:** documents and activity logs stay in the live system for 10 years (suits BIR/bank record-keeping; confirm with the accountant). After that they are **archived, never deleted**: they leave the default lists and search but stay retrievable (an "Archived" filter for authorised roles). Built as a computed state, no job needed: documents and activity-log entries older than Settings > "Keep records live for (years)" (default 10) are hidden from the Documents and Activity Log lists unless "Include archived" is ticked. Nothing is ever deleted and archived files still open.
   * **Receipt tax:** keep one amount plus an optional rate. No VAT/withholding breakdown for now.
   * **2FA:** not needed while FINOX stays on the internal network. Revisit before exposing it outside.
 * **No seeded payees or bank accounts.** The seeder creates only roles, permissions, receipt categories, bank names (BDO, BPI) and the print templates; add real payees and accounts in the app.

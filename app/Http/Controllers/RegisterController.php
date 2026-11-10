@@ -37,16 +37,16 @@ class RegisterController extends Controller
     {
         abort_unless($request->user()->hasPermission('register.view'), 403);
         $q = new RegisterQuery($request->only(self::KEYS));
-        ActivityLogService::log('report.exported', 'reports', 'Exported transaction register (CSV)');
+        $fmt = \App\Support\TableExport::format($request->input('format'));
+        ActivityLogService::log('report.exported', 'reports', 'Exported transaction register ('.strtoupper($fmt).')');
 
-        return response()->streamDownload(function () use ($q) {
-            $o = fopen('php://output', 'w');
-            fwrite($o, "\xEF\xBB\xBF");
-            fputcsv($o, ['Transaction ID', 'Type', 'Reference', 'Payee/Vendor', 'Date', 'Amount', 'Status', 'Created']);
+        $rows = (function () use ($q) {
             foreach ($q->cursor() as $r) {
-                fputcsv($o, [$r->transaction_id, $r->type, $r->reference_number, $r->party, $r->transaction_date, $r->amount, $r->status, $r->created_at]);
+                yield [$r->transaction_id, $r->type, $r->reference_number, $r->party, $r->transaction_date, $r->amount, $r->status, $r->created_at];
             }
-            fclose($o);
-        }, 'transaction-register-'.now()->format('Ymd-His').'.csv', ['Content-Type' => 'text/csv']);
+        })();
+
+        return \App\Support\TableExport::stream('transaction-register', $fmt,
+            ['Transaction ID', 'Type', 'Reference', 'Payee/Vendor', 'Date', 'Amount', 'Status', 'Created'], $rows, [5]);
     }
 }

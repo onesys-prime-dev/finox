@@ -17,6 +17,7 @@ class Settings
         'currency_symbol' => '₱',
         'max_upload_mb' => 10,
         'stale_days' => 180,
+        'retention_years' => 10,
         'session_minutes' => 60,
         'lockout_attempts' => 5,
         'lockout_minutes' => 15,
@@ -44,6 +45,12 @@ class Settings
     public static function get(string $key, mixed $default = null): mixed
     {
         return self::all()[$key] ?? $default;
+    }
+
+    /** Records older than this are "archived": hidden from default lists, never deleted. */
+    public static function retentionCutoff(): \Illuminate\Support\Carbon
+    {
+        return now()->subYears(max(1, (int) self::get('retention_years', 10)));
     }
 
     public static function set(string $key, mixed $value): void

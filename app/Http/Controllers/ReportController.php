@@ -70,17 +70,17 @@ class ReportController extends Controller
     public function export(Request $request, string $report): StreamedResponse
     {
         [$title, $columns, $rows] = $this->build($request, $report);
-        ActivityLogService::log('report.exported', 'reports', "Exported report: {$title} (CSV)");
+        $fmt = \App\Support\TableExport::format($request->input('format'));
+        ActivityLogService::log('report.exported', 'reports', "Exported report: {$title} (".strtoupper($fmt).')');
 
-        return response()->streamDownload(function () use ($columns, $rows) {
-            $o = fopen('php://output', 'w');
-            fwrite($o, "\xEF\xBB\xBF");
-            fputcsv($o, array_column($columns, 'label'));
+        $numeric = array_keys(array_filter(array_column($columns, 'type'), fn ($t) => $t === 'money'));
+        $out = (function () use ($columns, $rows) {
             foreach ($rows as $r) {
-                fputcsv($o, array_map(fn ($c) => $r[$c['key']] ?? '', $columns));
+                yield array_map(fn ($c) => $r[$c['key']] ?? '', $columns);
             }
-            fclose($o);
-        }, $report.'-'.now()->format('Ymd-His').'.csv', ['Content-Type' => 'text/csv']);
+        })();
+
+        return \App\Support\TableExport::stream($report, $fmt, array_column($columns, 'label'), $out, $numeric);
     }
 
     private function allowed($u, string $perm): bool

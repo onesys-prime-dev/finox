@@ -25,9 +25,9 @@ class SettingsController extends Controller
     {
         $d = $request->validate([
             'system_name' => 'required|string|max:60', 'org_name' => 'required|string|max:255', 'org_address' => 'nullable|string|max:500',
-            'org_contact' => 'nullable|string|max:255', 'date_format' => 'required|in:M d, Y,d/m/Y,m/d/Y,Y-m-d',
+            'org_contact' => 'nullable|string|max:255', 'date_format' => ['required', \Illuminate\Validation\Rule::in(['M d, Y', 'd/m/Y', 'm/d/Y', 'Y-m-d'])],
             'currency_symbol' => 'required|string|max:5', 'max_upload_mb' => 'required|integer|min:1|max:50',
-            'stale_days' => 'required|integer|min:30|max:730', 'session_minutes' => 'required|integer|min:5|max:720',
+            'stale_days' => 'required|integer|min:30|max:730', 'retention_years' => 'required|integer|min:1|max:50', 'session_minutes' => 'required|integer|min:5|max:720',
             'lockout_attempts' => 'required|integer|min:3|max:20', 'lockout_minutes' => 'required|integer|min:1|max:240',
             'password_min_length' => 'required|integer|min:8|max:64',
             'notify_failed_prints' => 'boolean', 'notify_stale_cheques' => 'boolean',

@@ -36,7 +36,7 @@ FINOX needs two background processes in production:
 
 * It needs `mysqldump`. If it is not on `PATH`, set `MYSQLDUMP_PATH` in `.env` (Laragon: `C:\laragon\bin\mysql\mysql-8.4.3-winx64\bin\mysqldump.exe`).
 * **Copy backups off the server** (another disk or machine) — a backup on the same disk is not a backup.
-* Retention: documents and activity logs are kept 10 years live, then to be archived (never deleted). The archive job is not built yet, so the system currently never removes either.
+* Retention: documents and activity logs are kept 10 years live, then archived (never deleted). Older ones are hidden from the Documents and Activity Log lists unless "Include archived" is ticked; the system never deletes either. The period is Settings > "Keep records live for (years)".
 
 ### Restore (test this before go-live)
 1. Unzip the backup somewhere safe.

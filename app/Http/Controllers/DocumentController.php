@@ -29,6 +29,7 @@ class DocumentController extends Controller
             ->when($request->link, fn ($q, $v) => $v === 'unlinked' ? $q->whereNull('documentable_type') : $q->where('documentable_type', $v))
             // People without blanket document access only see their own uploads.
             ->when(! $u->hasPermission('documents.view'), fn ($q) => $q->where('uploaded_by', $u->id))
+            ->when(! $request->boolean('archived'), fn ($q) => $q->where('created_at', '>=', \App\Support\Settings::retentionCutoff()))
             ->latest('id');
 
         return Inertia::render('Documents/Index', [
@@ -42,7 +43,8 @@ class DocumentController extends Controller
                     'url' => route($d->documentable_type === 'cheque' ? 'cheques.show' : 'receipts.show', $d->documentable_id),
                 ] : null,
             ]),
-            'filters' => $request->only('search', 'category', 'link'),
+            'filters' => $request->only('search', 'category', 'link', 'archived'),
+            'retentionYears' => (int) \App\Support\Settings::get('retention_years', 10),
             'categories' => DocumentCategory::options(),
             'canUpload' => $u->hasPermission('documents.upload'),
             'maxMb' => (int) \App\Support\Settings::get('max_upload_mb', 10),

@@ -7,7 +7,7 @@ import Modal from '@/Components/Modal';
 import { EmptyState, Field, PageHeader, Pagination, useFilters } from '@/Components/ui';
 import { bytes, useFmt } from '@/lib/format';
 
-export default function Index({ documents, filters, categories, canUpload, maxMb }) {
+export default function Index({ documents, filters, categories, canUpload, maxMb, retentionYears }) {
     const fmt = useFmt();
     const [f, apply] = useFilters('documents.index', filters);
     const [preview, setPreview] = useState(null);
@@ -24,6 +24,7 @@ export default function Index({ documents, filters, categories, canUpload, maxMb
                     <div className="relative min-w-[14rem] flex-1"><Icon name="search" className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><input className="input pl-9" placeholder="Search file name…" value={f.search ?? ''} onChange={(e) => apply({ ...f, search: e.target.value })} /></div>
                     <select className="input !w-auto" value={f.category ?? ''} onChange={(e) => apply({ ...f, category: e.target.value }, true)}><option value="">All categories</option>{categories.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}</select>
                     <select className="input !w-auto" value={f.link ?? ''} onChange={(e) => apply({ ...f, link: e.target.value }, true)}><option value="">Linked or not</option><option value="cheque">Linked to a cheque</option><option value="receipt">Linked to a receipt</option><option value="unlinked">Not linked</option></select>
+                    <label className="flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" checked={!!f.archived} onChange={(e) => apply({ ...f, archived: e.target.checked ? 1 : '' }, true)} /> Include archived (older than {retentionYears} yrs)</label>
                 </div>
                 <div className="overflow-x-auto">
                     <table className="tbl">
