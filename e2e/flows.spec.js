@@ -12,8 +12,8 @@ test('finance: cheque lifecycle through the screens', async ({ page }) => {
     // create + prepare
     await page.goto('/cheques/create');
     await page.locator('select').first().selectOption({ index: 1 }).catch(() => {});
-    await page.getByPlaceholder('Search payee or vendor…').fill('DEMO Office');
-    await page.getByText('DEMO Office Supplies Co.').first().click();
+    await page.getByPlaceholder('Search payee or vendor…').fill('Metro Office');
+    await page.getByText('Metro Office Supplies Inc.').first().click();
     await page.getByPlaceholder('0.00').fill('2,345.67');
     await expect(page.getByText('TWO THOUSAND THREE HUNDRED FORTY FIVE AND 67/100 PESOS ONLY').first()).toBeVisible();
     await page.getByRole('button', { name: /Save and prepare/ }).click();
