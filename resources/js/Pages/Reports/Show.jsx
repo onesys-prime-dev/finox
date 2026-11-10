@@ -25,6 +25,7 @@ export default function Show({ report, title, columns, rows, summary, filters, a
             <Head title={title} />
             <PageHeader title={title} back={{ href: route('reports.index'), label: 'All reports' }}
                 actions={<><button className="btn-secondary" onClick={() => window.print()}><Icon name="printer" className="h-4 w-4" /> Print / save as PDF</button>
+                    <a className="btn-secondary" href={`${route('reports.export', report)}?${qs}&format=pdf`}><Icon name="download" className="h-4 w-4" /> Export PDF</a>
                     <a className="btn-secondary" href={`${route('reports.export', report)}?${qs}&format=xlsx`}><Icon name="download" className="h-4 w-4" /> Export Excel</a>
                     <a className="btn-primary" href={`${route('reports.export', report)}?${qs}`}><Icon name="download" className="h-4 w-4" /> Export CSV</a></>} />
 

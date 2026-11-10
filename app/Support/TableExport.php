@@ -11,7 +11,7 @@ class TableExport
 {
     public static function format(?string $requested): string
     {
-        return $requested === 'xlsx' ? 'xlsx' : 'csv';
+        return in_array($requested, ['xlsx', 'pdf'], true) ? $requested : 'csv';
     }
 
     /**
@@ -22,6 +22,10 @@ class TableExport
     public static function stream(string $basename, string $format, array $headers, iterable $rows, array $numeric = []): StreamedResponse
     {
         $name = $basename.'-'.now()->format('Ymd-His').'.'.$format;
+
+        if ($format === 'pdf') {
+            return self::pdf($basename, $name, $headers, $rows, $numeric);
+        }
 
         if ($format === 'xlsx') {
             return response()->streamDownload(function () use ($headers, $rows, $numeric) {
@@ -51,4 +55,26 @@ class TableExport
             fclose($o);
         }, $name, ['Content-Type' => 'text/csv']);
     }
+
+    public const PDF_MAX_ROWS = 2000;
+
+    private static function pdf(string $basename, string $name, array $headers, iterable $rows, array $numeric): StreamedResponse
+    {
+        $kept = [];
+        $total = 0;
+        foreach ($rows as $r) {
+            $total++;
+            if ($total <= self::PDF_MAX_ROWS) {
+                $kept[] = $r;
+            }
+        }
+        $title = ucwords(str_replace(['-', '_'], ' ', $basename));
+        $bytes = \Barryvdh\DomPDF\Facade\Pdf::loadView('exports.table', [
+            'title' => $title, 'org' => Settings::get('org_name'), 'by' => request()->user()?->name, 'headers' => $headers,
+            'rows' => $kept, 'total' => $total, 'numeric' => $numeric,
+        ])->setPaper('a4', count($headers) > 6 ? 'landscape' : 'portrait')->output();
+
+        return response()->streamDownload(fn () => print($bytes), $name, ['Content-Type' => 'application/pdf']);
+    }
 }
+

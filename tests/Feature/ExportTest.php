@@ -46,6 +46,12 @@ class ExportTest extends TestCase
         $reg = $this->actingAs($fin)->get('/transactions/export?format=xlsx');
         $this->assertCount(2, $this->readXlsx($reg->streamedContent()));
 
+        foreach (['/reports/cheque-register/export?format=pdf', '/transactions/export?format=pdf'] as $u) {
+            $pdf = $this->actingAs($fin)->get($u);
+            $pdf->assertOk();
+            $this->assertStringStartsWith('%PDF', $pdf->streamedContent(), $u);
+        }
+
         $csv = $this->actingAs($fin)->get('/transactions/export');
         $this->assertStringContainsString('7000000001', $csv->streamedContent());
     }

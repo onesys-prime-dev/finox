@@ -1,5 +1,5 @@
 import { Link, router } from '@inertiajs/react';
-import { useEffect, useRef, useState } from 'react';
+import { Children, cloneElement, isValidElement, useEffect, useId, useRef, useState } from 'react';
 import Icon from './Icon';
 
 export function PageHeader({ title, subtitle, actions, back }) {
@@ -15,11 +15,24 @@ export function PageHeader({ title, subtitle, actions, back }) {
     );
 }
 
+const NATIVE_CONTROLS = ['input', 'select', 'textarea'];
+
+/** Labels are tied to their control (htmlFor/id) so screen readers announce them and clicking a label focuses the field. */
 export function Field({ label, error, hint, required, children, className = '' }) {
+    const auto = useId();
+    let id = null;
+    let body = children;
+    const kids = Children.toArray(children);
+    const first = kids[0];
+    if (isValidElement(first) && NATIVE_CONTROLS.includes(first.type) && first.props.type !== 'hidden') {
+        id = first.props.id ?? auto;
+        kids[0] = first.props.id ? first : cloneElement(first, { id });
+        body = kids;
+    }
     return (
         <div className={className}>
-            {label && <label className="label">{label}{required && <span className="text-red-500"> *</span>}</label>}
-            {children}
+            {label && <label className="label" htmlFor={id ?? undefined}>{label}{required && <span className="text-red-500"> *</span>}</label>}
+            {body}
             {error ? <p className="error">{error}</p> : hint ? <p className="hint">{hint}</p> : null}
         </div>
     );

@@ -18,6 +18,7 @@ export default function Index({ rows, totals, filters, accounts, users, savedFil
             <PageHeader title="Transaction register" subtitle="Cheques and receipts in one searchable list. Read-only — it reads the original records."
                 actions={<><button className="btn-secondary" onClick={() => window.print()}><Icon name="printer" className="h-4 w-4" /> Print</button>
                     <a className="btn-secondary" href={`${route('register.export')}?${qs}`}><Icon name="download" className="h-4 w-4" /> Export CSV</a>
+                    <a className="btn-secondary" href={`${route('register.export')}?${qs}&format=pdf`}><Icon name="download" className="h-4 w-4" /> Export PDF</a>
                     <a className="btn-secondary" href={`${route('register.export')}?${qs}&format=xlsx`}><Icon name="download" className="h-4 w-4" /> Export Excel</a></>} />
 
             <div className="mb-4 grid gap-3 sm:grid-cols-2">

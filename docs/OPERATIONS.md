@@ -68,3 +68,26 @@ Notes
 `php artisan finox:seed-loadtest 50000` fills the database with demo records so you can measure speed. Reset with `php artisan migrate:fresh --seed --drop-views` (this **erases all data** — never on a live system).
 
 Measured on 50,000 records (dev server, MySQL 8): cheque list 40 ms, search 60–90 ms, transaction register 0.35 s (worst 0.65 s), dashboard 0.5 s, 25,000-row CSV export 1.2 s.
+
+## Automated tests
+
+* `php artisan test` — 37+ PHP tests (roles, business rules, exports, retention). Runs on in-memory SQLite by default; add `DB_CONNECTION=mysql DB_DATABASE=finox_test DB_USERNAME=root` to run on MySQL too (the transaction register is a MySQL view).
+* `npm run e2e` — real-browser tests (Playwright/Chromium): every page as every role, and the full cheque lifecycle through the screens. It needs a separate database and server:
+  1. Create the database `finox_test`, copy `.env` to `.env.e2e` and set `APP_ENV=e2e`, `DB_DATABASE=finox_test`, `SESSION_DRIVER=file`, `APP_URL=http://127.0.0.1:8765`.
+  2. `DB_DATABASE=finox_test php artisan migrate:fresh --seed` then `php artisan db:seed --class=DemoSeeder` and create the `e2e-<role>@finox.test` users (password in `e2e/helpers.js`).
+  3. `APP_ENV=e2e php artisan serve --host=127.0.0.1 --port=8765`, then `npm run e2e`.
+* Headless Chromium shows no print dialog, so the e2e print step sends the browser's `afterprint` signal itself. In a real browser the confirm window appears when the print dialog closes; if it ever does not, the job waits under "Awaiting confirmation" on the Print center.
+
+## Scheduler (Windows)
+
+Laravel's scheduler needs one task that runs every minute. Use the XAMPP PHP (it has the `zip` extension the backup needs; the Laragon PHP does not):
+
+```
+schtasks /Create /SC MINUTE /MO 1 /TN "FINOX Scheduler" /TR "C:\xampp\php\php.exe C:\laragon\www\finox\artisan schedule:run"
+```
+
+Check with `php artisan schedule:list`; the next backup appears in `storage/app/backups`.
+
+## Exports
+
+Every report and the register export to CSV, Excel (.xlsx) and PDF. PDF is capped at 2,000 rows (the page says so); use Excel or CSV for the full set.
