@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import Modal from './Modal';
 import Icon from './Icon';
 
@@ -10,6 +10,7 @@ export default function ConfirmDialog({
     show, onClose, onConfirm, title, message, confirmLabel = 'Confirm', tone = 'primary',
     reasonLabel, reasonRequired = true, extraLabel, extraRequired = false, warning, processing = false, errors = {},
 }) {
+    const uid = useId();
     const [reason, setReason] = useState('');
     const [extra, setExtra] = useState('');
     useEffect(() => { if (show) { setReason(''); setExtra(''); } }, [show]);
@@ -31,15 +32,15 @@ export default function ConfirmDialog({
             {message && <p className="text-sm text-slate-600">{message}</p>}
             {reasonLabel && (
                 <div className="mt-3">
-                    <label className="label">{reasonLabel}{reasonRequired && <span className="text-red-500"> *</span>}</label>
-                    <textarea className={`input ${errors.reason ? 'input-error' : ''}`} rows={2} value={reason} onChange={(e) => setReason(e.target.value)} autoFocus />
+                    <label className="label" htmlFor={`${uid}-reason`}>{reasonLabel}{reasonRequired && <span className="text-red-500"> *</span>}</label>
+                    <textarea id={`${uid}-reason`} className={`input ${errors.reason ? 'input-error' : ''}`} rows={2} value={reason} onChange={(e) => setReason(e.target.value)} autoFocus />
                     {errors.reason && <p className="error">{errors.reason}</p>}
                 </div>
             )}
             {extraLabel && (
                 <div className="mt-3">
-                    <label className="label">{extraLabel}{extraRequired && <span className="text-red-500"> *</span>}</label>
-                    <textarea className={`input ${errors.stop_payment_note ? 'input-error' : ''}`} rows={2} value={extra} onChange={(e) => setExtra(e.target.value)} />
+                    <label className="label" htmlFor={`${uid}-extra`}>{extraLabel}{extraRequired && <span className="text-red-500"> *</span>}</label>
+                    <textarea id={`${uid}-extra`} className={`input ${errors.stop_payment_note ? 'input-error' : ''}`} rows={2} value={extra} onChange={(e) => setExtra(e.target.value)} />
                     {errors.stop_payment_note && <p className="error">{errors.stop_payment_note}</p>}
                 </div>
             )}

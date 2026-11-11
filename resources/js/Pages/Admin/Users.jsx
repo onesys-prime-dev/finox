@@ -12,6 +12,9 @@ export default function Users({ users, roles, filters, passwordMin }) {
     const [f, apply] = useFilters('admin.users.index', filters);
     const [edit, setEdit] = useState(null);
     const [confirm, setConfirm] = useState(null); // {user, kind}
+    const [busy, setBusy] = useState(false);
+    // One click = one request (a double click must not toggle a user twice); the dialog always closes when the request ends.
+    const run = (routeName) => { if (busy) return; setBusy(true); router.post(route(routeName, confirm.user.id), {}, { preserveScroll: true, onFinish: () => { setBusy(false); setConfirm(null); } }); };
     const form = useForm({ name: '', email: '', role_id: roles[0]?.id ?? '', password: '' });
     const open = (u) => { setEdit(u); form.setData({ name: u.name ?? '', email: u.email ?? '', role_id: u.role_id ?? roles[0]?.id ?? '', password: '' }); form.clearErrors(); };
     const save = () => {
@@ -51,8 +54,8 @@ export default function Users({ users, roles, filters, passwordMin }) {
                     <Field label="Email" required error={form.errors.email}><input type="email" className="input" value={form.data.email} onChange={(e) => form.setData('email', e.target.value)} /></Field>
                     <Field label="Role" required error={form.errors.role_id}><select className="input" value={form.data.role_id} onChange={(e) => form.setData('role_id', Number(e.target.value))}>{roles.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}</select></Field>
                     {!edit?.id && (
-                        <Field label="Temporary password" required error={form.errors.password} hint={`At least ${passwordMin} characters with upper/lower case and a number. The user must change it at first sign-in.`}>
-                            <div className="flex gap-2"><input className="input font-mono" value={form.data.password} onChange={(e) => form.setData('password', e.target.value)} /><button type="button" className="btn-secondary" onClick={gen}>Generate</button></div>
+                        <Field label="Temporary password" htmlFor="user-temp-password" required error={form.errors.password} hint={`At least ${passwordMin} characters with upper/lower case and a number. The user must change it at first sign-in.`}>
+                            <div className="flex gap-2"><input id="user-temp-password" className="input font-mono" value={form.data.password} onChange={(e) => form.setData('password', e.target.value)} /><button type="button" className="btn-secondary" onClick={gen}>Generate</button></div>
                         </Field>
                     )}
                 </div>
@@ -60,10 +63,10 @@ export default function Users({ users, roles, filters, passwordMin }) {
             <ConfirmDialog show={confirm?.kind === 'toggle'} onClose={() => setConfirm(null)} tone={confirm?.user.is_active ? 'danger' : 'primary'}
                 title={confirm?.user.is_active ? `Deactivate ${confirm?.user.name}?` : `Activate ${confirm?.user.name}?`} confirmLabel={confirm?.user.is_active ? 'Deactivate' : 'Activate'}
                 message={confirm?.user.is_active ? 'They will be signed out and unable to sign in. Their records and history are kept.' : 'They will be able to sign in again.'}
-                onConfirm={() => router.post(route('admin.users.toggle', confirm.user.id), {}, { preserveScroll: true, onSuccess: () => setConfirm(null) })} />
+                processing={busy} onConfirm={() => run('admin.users.toggle')} />
             <ConfirmDialog show={confirm?.kind === 'reset'} onClose={() => setConfirm(null)} title={`Reset password for ${confirm?.user.name}?`} confirmLabel="Reset password"
                 message="A temporary password is generated and shown once. They must change it at next sign-in."
-                onConfirm={() => router.post(route('admin.users.reset', confirm.user.id), {}, { preserveScroll: true, onSuccess: () => setConfirm(null) })} />
+                processing={busy} onConfirm={() => run('admin.users.reset')} />
         </AuthenticatedLayout>
     );
 }

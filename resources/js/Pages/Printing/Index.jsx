@@ -165,8 +165,8 @@ export default function Index({ category, ready, awaiting, failed, accounts, ban
                                 <p className="mb-2 text-sm font-semibold">Printer settings</p>
                                 <p className="mb-2 text-xs text-slate-500">Paper: {tpl0?.paper_width_mm} × {tpl0?.paper_height_mm} mm. In the browser dialog choose <b>Margins: None</b>, <b>Scale: 100%</b> and the right paper size.</p>
                                 <div className="grid grid-cols-2 gap-2">
-                                    <div><label className="label !text-xs">Shift X (mm)</label><input type="number" step="0.1" className="input" value={nudge.x} onChange={(e) => setNudge({ ...nudge, x: Number(e.target.value) })} /></div>
-                                    <div><label className="label !text-xs">Shift Y (mm)</label><input type="number" step="0.1" className="input" value={nudge.y} onChange={(e) => setNudge({ ...nudge, y: Number(e.target.value) })} /></div>
+                                    <div><label className="label !text-xs" htmlFor="shift-x">Shift X (mm)</label><input id="shift-x" type="number" step="0.1" className="input" value={nudge.x} onChange={(e) => setNudge({ ...nudge, x: Number(e.target.value) })} /></div>
+                                    <div><label className="label !text-xs" htmlFor="shift-y">Shift Y (mm)</label><input id="shift-y" type="number" step="0.1" className="input" value={nudge.y} onChange={(e) => setNudge({ ...nudge, y: Number(e.target.value) })} /></div>
                                 </div>
                                 <p className="hint">Remembered for this computer. Use the calibration print to find the right values.</p>
                                 {category === 'cheque' && <button className="mt-2 text-xs font-medium text-brand-700 hover:underline" onClick={() => setFull(!full)}>{full ? 'Show cheque area only' : 'Show full sheet'}</button>}
@@ -175,8 +175,8 @@ export default function Index({ category, ready, awaiting, failed, accounts, ban
                                 <div className="rounded-xl border border-amber-300 bg-amber-50 p-4">
                                     <p className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-amber-900"><Icon name="alert" className="h-4 w-4" /> Reprinting cheques</p>
                                     <p className="mb-3 text-xs text-amber-900">A physical cheque may already exist. A reprint creates <b>no new transaction</b> and the earlier print stays in the history.</p>
-                                    <label className="label !text-xs">Reason</label>
-                                    <select className="input" value={pick} onChange={(e) => setPick(e.target.value)}><option value="">Select…</option>{REASONS.map((r) => <option key={r}>{r}</option>)}</select>
+                                    <label className="label !text-xs" htmlFor="reprint-reason">Reason</label>
+                                    <select id="reprint-reason" className="input" value={pick} onChange={(e) => setPick(e.target.value)}><option value="">Select…</option>{REASONS.map((r) => <option key={r}>{r}</option>)}</select>
                                     <input className="input mt-2" placeholder={pick === 'Other' ? 'Describe the reason (required)' : 'Details (optional)'} value={reason} onChange={(e) => setReason(e.target.value)} />
                                     <label className="mt-3 flex items-start gap-2 text-xs text-amber-900"><input type="checkbox" className="mt-0.5 rounded border-amber-400 text-brand-600" checked={ack} onChange={(e) => setAck(e.target.checked)} /> I understand the earlier paper cheque must be destroyed or accounted for.</label>
                                 </div>
@@ -250,8 +250,8 @@ function ConfirmPrint({ job, onClose }) {
             {mode === 'problem' && (
                 <div className="mt-4">
                     {items.length > 1 && <><p className="label">Which ones had a problem?</p><div className="mb-3 max-h-36 space-y-1 overflow-auto">{items.map((i) => <label key={i.id} className="flex items-center gap-2 text-sm"><input type="checkbox" className="rounded border-slate-300 text-brand-600" checked={failed.includes(i.id)} onChange={() => setFailed(failed.includes(i.id) ? failed.filter((x) => x !== i.id) : [...failed, i.id])} /> {i.label}</label>)}</div><p className="hint -mt-2 mb-2">Leave all unticked if every page had a problem.</p></>}
-                    <label className="label">What went wrong?</label>
-                    <textarea className="input" rows={2} placeholder="e.g. Text printed too low, paper jammed" value={note} onChange={(e) => setNote(e.target.value)} autoFocus />
+                    <label className="label" htmlFor="print-problem-note">What went wrong?</label>
+                    <textarea id="print-problem-note" className="input" rows={2} placeholder="e.g. Text printed too low, paper jammed" value={note} onChange={(e) => setNote(e.target.value)} autoFocus />
                     {errs.note && <p className="error">{errs.note}</p>}
                 </div>
             )}

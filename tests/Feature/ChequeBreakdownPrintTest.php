@@ -98,4 +98,30 @@ class ChequeBreakdownPrintTest extends TestCase
         $this->actingAs($fin)->postJson("/cheques/{$c->id}/schedule/printed")->assertOk();
         $this->assertDatabaseHas('activity_logs', ['action' => 'cheque.schedule_printed']);
     }
+
+    public function test_saving_a_template_from_the_editor_keeps_real_numbers_and_booleans(): void
+    {
+        $admin = $this->userWithRole('admin');
+        $t = PrintTemplate::where('kind', 'cheque')->first();
+        // The editor posts multipart data: everything arrives as strings.
+        $stringify = function ($v) use (&$stringify) {
+            return is_array($v) ? array_map($stringify, $v) : (is_bool($v) ? ($v ? '1' : '0') : (is_null($v) ? null : (string) $v));
+        };
+        $layout = $stringify($t->layout);
+        $this->actingAs($admin)->post("/admin/templates/{$t->id}", ['name' => $t->name, 'kind' => 'cheque', 'paper_width_mm' => '200', 'paper_height_mm' => '280',
+            'offset_x_mm' => '0', 'offset_y_mm' => '0', 'is_active' => '1', 'layout' => $layout])->assertSessionHasNoErrors();
+
+        $saved = $t->fresh()->layout;
+        $table = collect($saved['fields'])->firstWhere('type', 'table');
+        $this->assertIsNotString($table['x']);
+        $this->assertEquals(12, $table['x']);
+        $this->assertSame(15, $table['max_rows']);
+        $this->assertFalse($table['uppercase']);
+        $this->assertTrue($table['header']);
+        $this->assertIsNotString($table['columns'][0]['width']);
+        $this->assertEquals(18, $table['columns'][0]['width']);
+        $this->assertIsNotString($saved['advice_crop']['top']);
+        $this->assertEquals(BdoAdviceLayout::CROP['top'], $saved['advice_crop']['top']);
+        $this->assertFalse(collect($saved['fields'])->firstWhere('key', 'adv_date')['uppercase']);
+    }
 }

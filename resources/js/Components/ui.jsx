@@ -18,7 +18,7 @@ export function PageHeader({ title, subtitle, actions, back }) {
 const NATIVE_CONTROLS = ['input', 'select', 'textarea'];
 
 /** Labels are tied to their control (htmlFor/id) so screen readers announce them and clicking a label focuses the field. */
-export function Field({ label, error, hint, required, children, className = '' }) {
+export function Field({ label, error, hint, required, children, className = '', htmlFor }) {
     const auto = useId();
     let id = null;
     let body = children;
@@ -31,7 +31,7 @@ export function Field({ label, error, hint, required, children, className = '' }
     }
     return (
         <div className={className}>
-            {label && <label className="label" htmlFor={id ?? undefined}>{label}{required && <span className="text-red-500"> *</span>}</label>}
+            {label && <label className="label" htmlFor={htmlFor ?? id ?? undefined}>{label}{required && <span className="text-red-500"> *</span>}</label>}
             {body}
             {error ? <p className="error">{error}</p> : hint ? <p className="hint">{hint}</p> : null}
         </div>

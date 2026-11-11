@@ -58,4 +58,14 @@ class ReviewFixesTest extends TestCase
             $this->assertNull(\App\Support\Money::parse($bad), $bad);
         }
     }
+
+    public function test_background_ajax_calls_do_not_swallow_a_pending_flash_message(): void
+    {
+        $u = $this->userWithRole('finance');
+        $this->actingAs($u)->withSession(['_flash' => ['old' => [], 'new' => ['success']], 'success' => 'Saved.']);
+        // a background JSON call between the redirect and the page load
+        $this->getJson('/payees/search?q=a')->assertOk();
+        $this->assertSame('Saved.', session('success'));
+        $this->get('/dashboard')->assertOk();
+    }
 }

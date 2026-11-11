@@ -5,14 +5,14 @@ import Icon from '@/Components/Icon';
 import PrintSheet, { SheetFrame } from '@/Components/PrintSheet';
 import { Banner, Field, PageHeader, Spinner } from '@/Components/ui';
 
-const SAMPLE = {
-    cheque: { payee_line: 'SAMPLE PAYEE NAME CORPORATION', amount_number: '1,234,567.89', amount_words: 'ONE MILLION TWO HUNDRED THIRTY FOUR THOUSAND FIVE HUNDRED SIXTY SEVEN AND 89/100 PESOS ONLY', date: '2026-11-09', check_no: '0000094658', purpose: 'Sample purpose of payment', reference: 'REF-0001', breakdown: SAMPLE_BREAKDOWN, prepared_by: 'Prepared By', printed_on: '2026-11-09', bank_account_name: 'ACCOUNT NAME' },
-    receipt: { org_name: 'Your Organization', org_address: '123 Sample Street, City', receipt_no: 'OR-0001', date: '2026-11-09', vendor: 'Sample Vendor Inc.', description: 'Sample description of goods', amount_number: '1,234.56', tax: '₱148.15', reference: 'REF-1', prepared_by: 'Prepared By', printed_on: '2026-11-09' },
-};
 const SAMPLE_BREAKDOWN = {
     rows: [['2026-11-02', 'OR-1001', 'Sample Supplies Inc.', 'Office supplies', '10,000.00'], ['2026-11-03', 'INV-2201', 'Toner World Corp.', 'Toner cartridges', '25,500.50'], ['2026-11-04', 'OR-1003', 'Sample Supplies Inc.', 'Bond paper', '3,000.00']]
         .map(([line_date, reference_no, vendor, particulars, amount]) => ({ line_date, reference_no, vendor, particulars, amount })),
     count: 3, total: '38,500.50',
+};
+const SAMPLE = {
+    cheque: { payee_line: 'SAMPLE PAYEE NAME CORPORATION', amount_number: '1,234,567.89', amount_words: 'ONE MILLION TWO HUNDRED THIRTY FOUR THOUSAND FIVE HUNDRED SIXTY SEVEN AND 89/100 PESOS ONLY', date: '2026-11-09', check_no: '0000094658', purpose: 'Sample purpose of payment', reference: 'REF-0001', breakdown: SAMPLE_BREAKDOWN, prepared_by: 'Prepared By', printed_on: '2026-11-09', bank_account_name: 'ACCOUNT NAME' },
+    receipt: { org_name: 'Your Organization', org_address: '123 Sample Street, City', receipt_no: 'OR-0001', date: '2026-11-09', vendor: 'Sample Vendor Inc.', description: 'Sample description of goods', amount_number: '1,234.56', tax: '₱148.15', reference: 'REF-1', prepared_by: 'Prepared By', printed_on: '2026-11-09' },
 };
 const DEFAULT_COLUMNS = [
     { key: 'line_date', label: 'DATE', x: 0, width: 18, align: 'left' }, { key: 'reference_no', label: 'OR / INV NO.', x: 20, width: 28, align: 'left' },

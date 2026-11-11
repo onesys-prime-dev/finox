@@ -125,6 +125,50 @@ class TemplateController extends Controller
         $t->update(['background_path' => $f->storeAs('templates', Str::uuid().'.'.($mime === 'image/png' ? 'png' : 'jpg'), 'local')]);
     }
 
+    /**
+     * The editor posts multipart form data, so every value arrives as a string ("12", "0", "1").
+     * Store real numbers and booleans, otherwise the layout is corrupted ("0" is truthy, "12" + 0 is "120").
+     */
+    private function normaliseLayout(array $layout): array
+    {
+        $num = fn ($v) => is_numeric($v) ? (float) $v : $v;
+        $bool = fn ($v) => filter_var($v, FILTER_VALIDATE_BOOLEAN);
+        foreach (['preview_crop', 'advice_crop'] as $crop) {
+            if (isset($layout[$crop]) && is_array($layout[$crop])) {
+                $layout[$crop] = array_map($num, $layout[$crop]);
+            }
+        }
+        foreach ($layout['fields'] ?? [] as $i => $f) {
+            foreach (['x', 'y', 'width', 'font_size', 'row_height', 'min_font_size'] as $k) {
+                if (isset($f[$k])) {
+                    $f[$k] = $num($f[$k]);
+                }
+            }
+            foreach (['max_lines', 'max_rows'] as $k) {
+                if (isset($f[$k])) {
+                    $f[$k] = (int) $f[$k];
+                }
+            }
+            foreach (['uppercase', 'bold', 'header', 'total'] as $k) {
+                if (array_key_exists($k, $f)) {
+                    $f[$k] = $bool($f[$k]);
+                }
+            }
+            if (isset($f['char_x']) && is_array($f['char_x'])) {
+                $f['char_x'] = array_map($num, $f['char_x']);
+            }
+            if (isset($f['columns']) && is_array($f['columns'])) {
+                $f['columns'] = array_values(array_map(fn ($c) => ['x' => $num($c['x'] ?? 0), 'width' => $num($c['width'] ?? 0)] + $c, $f['columns']));
+            }
+            if (($f['format'] ?? null) === '') {
+                $f['format'] = null;
+            }
+            $layout['fields'][$i] = $f;
+        }
+
+        return $layout;
+    }
+
     private function validated(Request $request): array
     {
         $kind = $request->input('kind', 'cheque');
@@ -134,6 +178,7 @@ class TemplateController extends Controller
             'offset_x_mm' => 'nullable|numeric|between:-20,20', 'offset_y_mm' => 'nullable|numeric|between:-20,20',
             'is_active' => 'boolean', 'notes' => 'nullable|string|max:2000',
             'layout' => 'required|array', 'layout.fields' => 'required|array|max:60',
+            'layout.advice_crop' => 'nullable|array', 'layout.advice_crop.top' => 'numeric|min:0', 'layout.advice_crop.height' => 'numeric|min:10',
             'layout.preview_crop' => 'nullable|array', 'layout.preview_crop.top' => 'numeric|min:0', 'layout.preview_crop.height' => 'numeric|min:10',
             'layout.fields.*.key' => 'required|string|max:40',
             'layout.fields.*.source' => 'required|in:'.implode(',', self::SOURCES[$kind] ?? self::SOURCES['cheque']),
@@ -161,6 +206,7 @@ class TemplateController extends Controller
             'background' => 'nullable|file|max:10240',
         ]);
         unset($data['background']);
+        $data['layout'] = $this->normaliseLayout($data['layout']);
         $data['offset_x_mm'] ??= 0;
         $data['offset_y_mm'] ??= 0;
 

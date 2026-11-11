@@ -26,8 +26,8 @@ export default function Form({ receipt, categories }) {
             <form onSubmit={(e) => { e.preventDefault(); save('record'); }} className="card card-pad mx-auto max-w-3xl">
                 <ReceiptFields data={form.data} set={form.setData} errors={form.errors} categories={categories} payee={payee} setPayee={setPayee} ignoreId={receipt?.id} chequeLabel={receipt?.cheque_label} autoFocus />
                 {!editing && (
-                    <div className="mt-4"><label className="label">Attach a file (optional)</label>
-                        <input type="file" accept=".pdf,.jpg,.jpeg,.png" className="input" onChange={(e) => form.setData('file', e.target.files[0] ?? null)} />
+                    <div className="mt-4"><label className="label" htmlFor="receipt-file">Attach a file (optional)</label>
+                        <input id="receipt-file" type="file" accept=".pdf,.jpg,.jpeg,.png" className="input" onChange={(e) => form.setData('file', e.target.files[0] ?? null)} />
                         {form.errors.file && <p className="error">{form.errors.file}</p>}</div>
                 )}
                 <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">

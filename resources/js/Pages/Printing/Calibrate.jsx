@@ -34,8 +34,8 @@ export default function Calibrate({ template, sample, globalOffset }) {
                     <div className="card card-pad">
                         <p className="card-title mb-3">Printer offset</p>
                         <div className="grid grid-cols-2 gap-2">
-                            <div><label className="label !text-xs">Shift X (mm)</label><input type="number" step="0.1" className="input" value={nudge.x} onChange={(e) => save({ ...nudge, x: Number(e.target.value) })} /></div>
-                            <div><label className="label !text-xs">Shift Y (mm)</label><input type="number" step="0.1" className="input" value={nudge.y} onChange={(e) => save({ ...nudge, y: Number(e.target.value) })} /></div>
+                            <div><label className="label !text-xs" htmlFor="shift-x">Shift X (mm)</label><input id="shift-x" type="number" step="0.1" className="input" value={nudge.x} onChange={(e) => save({ ...nudge, x: Number(e.target.value) })} /></div>
+                            <div><label className="label !text-xs" htmlFor="shift-y">Shift Y (mm)</label><input id="shift-y" type="number" step="0.1" className="input" value={nudge.y} onChange={(e) => save({ ...nudge, y: Number(e.target.value) })} /></div>
                         </div>
                         <p className="hint">Positive moves right / down. Saved on this computer and used for real prints.</p>
                     </div>
