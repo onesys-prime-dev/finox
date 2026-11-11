@@ -2,6 +2,8 @@
 
 ## [Unreleased](https://github.com/laravel/laravel/compare/v12.12.1...12.x)
 
+* FINOX: cheque breakdown rows (typed or from receipts) printed as a table on the Payment Advice, table field in the template engine, BDO template v3, A4 overflow schedule, "Cheque Breakdown" report. Plus the code-review fixes (cancel/void rule, print race, login throttle, CSV safety, local-time dates, strict amount commas).
+
 ## [v12.12.1](https://github.com/laravel/laravel/compare/v12.12.0...v12.12.1) - 2026-03-10
 
 * [12.x] Makes imports consistent by [@nunomaduro](https://github.com/nunomaduro) in https://github.com/laravel/laravel/pull/6760

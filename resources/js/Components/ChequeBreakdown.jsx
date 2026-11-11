@@ -59,29 +59,33 @@ export default function ChequeBreakdown({ lines, setLines, amount, payeeId, paye
                 <p className="rounded-lg bg-slate-50 px-3 py-4 text-center text-sm text-slate-400">No breakdown rows. The advice area will print empty.</p>
             ) : (
                 <div className="space-y-2">
-                    <div className="hidden grid-cols-[6.5rem_7rem_minmax(0,1fr)_minmax(0,1.4fr)_7.5rem_5.5rem] gap-2 px-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500 lg:grid">
-                        <span>Date</span><span>OR / invoice</span><span>Vendor</span><span>Particulars</span><span className="text-right">Amount</span><span />
-                    </div>
-                    {lines.map((l, i) => (
-                        <div key={i} className="grid grid-cols-2 items-start gap-2 rounded-lg bg-slate-50/60 p-2 lg:grid-cols-[6.5rem_7rem_minmax(0,1fr)_minmax(0,1.4fr)_7.5rem_5.5rem] lg:bg-transparent lg:p-0">
-                            <input type="date" className="input !py-1.5 text-sm" aria-label={`Row ${i + 1} date`} disabled={locked} value={l.line_date ?? ''} onChange={(e) => update(i, { line_date: e.target.value })} />
-                            <input className="input !py-1.5 font-mono text-sm" aria-label={`Row ${i + 1} OR or invoice no.`} placeholder="OR / INV no." disabled={locked} value={l.reference_no ?? ''} onChange={(e) => update(i, { reference_no: e.target.value })} />
-                            <input className="input !py-1.5 text-sm" aria-label={`Row ${i + 1} vendor`} placeholder="Vendor" disabled={locked} value={l.vendor ?? ''} onChange={(e) => update(i, { vendor: e.target.value })} />
-                            <input className="input !py-1.5 text-sm" aria-label={`Row ${i + 1} particulars`} placeholder="Particulars" disabled={locked} value={l.particulars ?? ''} onChange={(e) => update(i, { particulars: e.target.value })} />
-                            <div>
-                                <input inputMode="decimal" className={`input !py-1.5 text-right font-mono text-sm ${errors[`lines.${i}.amount`] || (l.amount !== '' && !parseAmount(l.amount)) ? 'input-error' : ''}`} aria-label={`Row ${i + 1} amount`} placeholder="0.00" disabled={locked} value={l.amount ?? ''} onChange={(e) => update(i, { amount: e.target.value })} />
+                    {lines.map((l, i) => {
+                        const lab = (t) => (i === 0 ? <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide text-slate-400">{t}</span> : null);
+                        return (
+                            <div key={i} className="rounded-lg border border-slate-100 bg-slate-50/50 p-2">
+                                <div className="grid grid-cols-[8.5rem_minmax(0,1fr)_8.5rem_auto] items-end gap-2">
+                                    <label className="block">{lab('Date')}<input type="date" className="input !py-1.5 text-sm" aria-label={`Row ${i + 1} date`} disabled={locked} value={l.line_date ?? ''} onChange={(e) => update(i, { line_date: e.target.value })} /></label>
+                                    <label className="block">{lab('OR / invoice no.')}<input className="input !py-1.5 font-mono text-sm" aria-label={`Row ${i + 1} OR or invoice no.`} placeholder="OR / INV no." disabled={locked} value={l.reference_no ?? ''} onChange={(e) => update(i, { reference_no: e.target.value })} /></label>
+                                    <label className="block">{lab('Amount')}
+                                        <input inputMode="decimal" className={`input !py-1.5 text-right font-mono text-sm ${errors[`lines.${i}.amount`] || (l.amount !== '' && !parseAmount(l.amount)) ? 'input-error' : ''}`} aria-label={`Row ${i + 1} amount`} placeholder="0.00" disabled={locked} value={l.amount ?? ''} onChange={(e) => update(i, { amount: e.target.value })} />
+                                    </label>
+                                    <div className="flex items-center justify-end gap-0.5 pb-1">
+                                        {l.receipt_id && <a href={l.receipt_url ?? route('receipts.show', l.receipt_id)} target="_blank" className="rounded p-1 text-brand-600 hover:bg-brand-50" title="Linked receipt" aria-label="Open linked receipt"><Icon name="receipt" className="h-4 w-4" /></a>}
+                                        {!locked && <>
+                                            <button type="button" className="rounded p-1 text-slate-400 hover:bg-slate-100 disabled:opacity-30" onClick={() => move(i, -1)} disabled={i === 0} aria-label="Move up"><Icon name="chevronLeft" className="h-4 w-4 rotate-90" /></button>
+                                            <button type="button" className="rounded p-1 text-slate-400 hover:bg-slate-100 disabled:opacity-30" onClick={() => move(i, 1)} disabled={i === lines.length - 1} aria-label="Move down"><Icon name="chevronLeft" className="h-4 w-4 -rotate-90" /></button>
+                                            <button type="button" className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => remove(i)} aria-label="Remove row"><Icon name="trash" className="h-4 w-4" /></button>
+                                        </>}
+                                    </div>
+                                </div>
                                 {errors[`lines.${i}.amount`] && <p className="error">{errors[`lines.${i}.amount`]}</p>}
+                                <div className="mt-2 grid grid-cols-2 gap-2">
+                                    <label className="block">{lab('Vendor')}<input className="input !py-1.5 text-sm" aria-label={`Row ${i + 1} vendor`} placeholder="Vendor" disabled={locked} value={l.vendor ?? ''} onChange={(e) => update(i, { vendor: e.target.value })} /></label>
+                                    <label className="block">{lab('Particulars')}<input className="input !py-1.5 text-sm" aria-label={`Row ${i + 1} particulars`} placeholder="Particulars" disabled={locked} value={l.particulars ?? ''} onChange={(e) => update(i, { particulars: e.target.value })} /></label>
+                                </div>
                             </div>
-                            <div className="flex items-center justify-end gap-0.5">
-                                {l.receipt_id && <a href={l.receipt_url ?? route('receipts.show', l.receipt_id)} target="_blank" className="rounded p-1 text-brand-600 hover:bg-brand-50" title="Linked receipt" aria-label="Open linked receipt"><Icon name="receipt" className="h-4 w-4" /></a>}
-                                {!locked && <>
-                                    <button type="button" className="rounded p-1 text-slate-400 hover:bg-slate-100" onClick={() => move(i, -1)} disabled={i === 0} aria-label="Move up"><Icon name="chevronLeft" className="h-4 w-4 rotate-90" /></button>
-                                    <button type="button" className="rounded p-1 text-slate-400 hover:bg-slate-100" onClick={() => move(i, 1)} disabled={i === lines.length - 1} aria-label="Move down"><Icon name="chevronLeft" className="h-4 w-4 -rotate-90" /></button>
-                                    <button type="button" className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600" onClick={() => remove(i)} aria-label="Remove row"><Icon name="trash" className="h-4 w-4" /></button>
-                                </>}
-                            </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             )}
 
