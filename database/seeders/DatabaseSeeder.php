@@ -70,18 +70,13 @@ class DatabaseSeeder extends Seeder
         PrintTemplate::firstOrCreate(['name' => 'BDO Corporate Check Printing (3-part)'], [
             'kind' => 'cheque', 'paper_width_mm' => 200, 'paper_height_mm' => 280, 'background_path' => $bg,
             'notes' => 'Cheque no., account details and MICR are pre-printed and are never printed by FINOX.',
-            'layout' => ['preview_crop' => ['top' => 205, 'height' => 75], 'fields' => [
+            'layout' => ['preview_crop' => ['top' => 205, 'height' => 75], 'advice_crop' => \App\Support\BdoAdviceLayout::CROP, 'fields' => [
                 $f('date', 'date', 152, 214.6, 45, ['format' => 'date_segmented', 'font_size' => 12,
                     'char_x' => [154.4, 159.6, 167.4, 172.4, 179.2, 184.2, 189.2, 194.2]]),
                 $f('payee', 'payee_line', 30, 223.4, 108, ['font_size' => 11, 'max_lines' => 1]),
                 $f('amount', 'amount_number', 146, 223.8, 49, ['align' => 'left', 'font_size' => 12, 'format' => 'amount_stars']),
                 $f('words', 'amount_words', 22, 231.4, 174, ['font_size' => 9, 'max_lines' => 2]),
-                $f('adv_payee', 'payee_line', 20, 100, 150, ['region' => 'advice', 'font_size' => 11, 'label' => 'Payee']),
-                $f('adv_amount', 'amount_number', 20, 110, 80, ['region' => 'advice', 'font_size' => 11, 'label' => 'Amount (PHP)']),
-                $f('adv_purpose', 'purpose', 20, 120, 160, ['region' => 'advice', 'font_size' => 10, 'label' => 'Purpose', 'max_lines' => 3, 'uppercase' => false]),
-                $f('adv_ref', 'reference', 20, 138, 100, ['region' => 'advice', 'font_size' => 10, 'label' => 'Reference']),
-                $f('adv_by', 'prepared_by', 20, 148, 100, ['region' => 'advice', 'font_size' => 10, 'label' => 'Prepared by', 'uppercase' => false]),
-                $f('adv_date', 'date', 20, 158, 60, ['region' => 'advice', 'font_size' => 10, 'label' => 'Date', 'format' => 'date_long']),
+                ...\App\Support\BdoAdviceLayout::fields(),
             ]],
         ]);
 

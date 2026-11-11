@@ -115,7 +115,7 @@ export default function Show({ cheque: c, can, preparationErrors, staleDays }) {
                         <div className="card">
                             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
                                 <p className="card-title">Breakdown</p>
-                                <span className="text-xs text-slate-500">Printed on the Payment Advice</span>
+                                <span className="flex items-center gap-3 text-xs text-slate-500">Printed on the Payment Advice<Link href={route('cheques.schedule', c.id)} className="btn-secondary btn-sm"><Icon name="printer" className="h-3.5 w-3.5" /> A4 schedule</Link></span>
                             </div>
                             <div className="overflow-x-auto">
                                 <table className="tbl">

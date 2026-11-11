@@ -23,6 +23,83 @@ export const segmentedDate = (iso) => {
 
 const PT_MM = 0.3528; // 1pt in mm
 
+/** MM/DD/YY for table dates. */
+const shortDate = (iso) => {
+    const [y, m, d] = String(iso || '').slice(0, 10).split('-');
+    return y ? `${m}/${d}/${y.slice(2)}` : '';
+};
+
+/**
+ * Decide what a table field prints. When there are more rows than `max_rows`:
+ *  - overflow "shrink": shrink font and row height down to `min_font_size`, then fall back to the schedule note;
+ *  - overflow "schedule" (default): print max_rows-1 rows plus a "see attached schedule" line.
+ * The total is always the full total.
+ */
+export function planTable(f, data) {
+    const rows = data?.rows ?? [];
+    const max = Math.max(1, f.max_rows || 15);
+    let font = f.font_size || 9;
+    let rowH = f.row_height || 4;
+    let shown = rows;
+    let more = 0;
+    if (rows.length > max) {
+        if (f.overflow === 'shrink') {
+            const factor = Math.max(Math.min(f.min_font_size || 7, font) / font, max / rows.length);
+            font *= factor;
+            rowH *= factor;
+            const cap = Math.floor(max / factor);
+            if (rows.length > cap) { shown = rows.slice(0, cap - 1); more = rows.length - (cap - 1); }
+        } else {
+            shown = rows.slice(0, max - 1);
+            more = rows.length - (max - 1);
+        }
+    }
+    return { shown, more, font, rowH, max };
+}
+
+/** Table field: header, rows, "more" note and a fixed-position total, all positioned in millimetres. */
+function BreakdownTable({ f, data, ox, oy, outline, evt }) {
+    const { shown, more, font, rowH, max } = planTable(f, data);
+    const baseRow = f.row_height || 4;
+    const cols = f.columns ?? [];
+    const hasHeader = f.header !== false && f.header !== 0;
+    const hasTotal = f.total !== false && f.total !== 0;
+    const headH = hasHeader ? baseRow : 0;
+    const bodyTop = headH + (hasHeader ? 0.8 : 0);
+    const totalTop = bodyTop + max * baseRow + 0.8;
+    const height = totalTop + (hasTotal ? baseRow + 0.5 : 0);
+    const text = (col, v) => (col.key === 'line_date' ? shortDate(v) : v ?? '');
+    const upper = (s) => (f.uppercase ? String(s).toUpperCase() : s);
+    const cell = (col, top, content, extra = {}) => (
+        <span key={`${col.key}-${top}`} className="sheet-field" style={{
+            left: `${col.x}mm`, top: `${top}mm`, width: `${col.width}mm`, fontSize: `${extra.font ?? font}pt`, textAlign: col.align,
+            whiteSpace: 'nowrap', textOverflow: 'clip', fontWeight: extra.bold ? 700 : 400, fontStyle: extra.italic ? 'italic' : 'normal',
+        }}>{upper(content)}</span>
+    );
+    const amountCol = cols.find((c) => c.key === 'amount') ?? cols[cols.length - 1];
+    const rule = (top) => <div className="absolute" style={{ left: 0, top: `${top}mm`, width: `${f.width}mm`, borderTop: '0.2mm solid #000' }} />;
+
+    return (
+        <div {...evt} className="absolute" style={{ left: `${f.x + ox}mm`, top: `${f.y + oy}mm`, width: `${f.width}mm`, height: `${height}mm`, ...outline }}>
+            {hasHeader && cols.map((c) => cell(c, 0, c.label ?? '', { bold: true, font: Math.min(font, f.font_size || 9) }))}
+            {hasHeader && rule(headH + 0.2)}
+            {shown.map((r, i) => cols.map((c) => cell(c, bodyTop + i * (rowH), text(c, r[c.key]))))}
+            {more > 0 && (
+                <span className="sheet-field" style={{ left: 0, top: `${bodyTop + shown.length * rowH}mm`, width: `${f.width}mm`, fontSize: `${font}pt`, whiteSpace: 'nowrap', fontStyle: 'italic' }}>
+                    {`…and ${more} more item${more > 1 ? 's' : ''} — see attached schedule`}
+                </span>
+            )}
+            {hasTotal && data?.total && (
+                <>
+                    {rule(totalTop - 0.4)}
+                    {amountCol && cell({ ...amountCol, x: 0, width: amountCol.x - 1, align: 'right', key: 'tl' }, totalTop, f.total_label || 'TOTAL', { bold: true })}
+                    {amountCol && cell({ ...amountCol, key: 'tv' }, totalTop, data.total, { bold: true })}
+                </>
+            )}
+        </div>
+    );
+}
+
 /**
  * One physical page rendered in millimetres. Used by the preview, the print root and the template editor.
  * `showBackground` is for on-screen preview only — the scan is never printed.
@@ -53,6 +130,10 @@ export default function PrintSheet({
                 const outline = guides || interactive
                     ? { outline: `${selected === i ? 0.4 : 0.15}mm ${selected === i ? 'solid #2551d6' : 'dashed rgba(37,81,214,.6)'}`, background: selected === i ? 'rgba(37,81,214,.08)' : 'transparent', cursor: interactive ? 'move' : 'default' }
                     : {};
+                if (f.type === 'table') {
+                    const { key: _k, ...evt } = common;
+                    return <BreakdownTable key={i} f={f} data={values[f.source]} ox={ox} oy={oy} outline={outline} evt={evt} />;
+                }
                 if (f.format === 'date_segmented') {
                     const chars = segmentedDate(values[f.source]);
                     const xs = f.char_x?.length ? f.char_x : [];

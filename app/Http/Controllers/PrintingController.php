@@ -96,6 +96,7 @@ class PrintingController extends Controller
                 'template' => $this->service->templatePayload($this->service->templateFor($r)),
                 'values' => $this->service->values($r, $request->user()),
                 'warn_printed' => $r instanceof Cheque && $r->print_count > 0,
+                'overflow_rows' => $r instanceof Cheque ? $this->overflowRows($r) : 0,
             ])->values(),
         ]);
     }
@@ -166,6 +167,9 @@ class PrintingController extends Controller
                 'payee_line' => 'SAMPLE PAYEE NAME CORPORATION', 'amount_number' => '1,234,567.89',
                 'amount_words' => 'ONE MILLION TWO HUNDRED THIRTY FOUR THOUSAND FIVE HUNDRED SIXTY SEVEN AND 89/100 PESOS ONLY',
                 'date' => now()->toDateString(), 'check_no' => '0000000000', 'purpose' => 'SAMPLE PURPOSE', 'reference' => 'REF-0001',
+                'breakdown' => ['rows' => collect(range(1, 6))->map(fn ($i) => ['line_date' => now()->subDays($i)->toDateString(), 'reference_no' => 'OR-'.(1000 + $i),
+                    'vendor' => 'Sample Vendor '.$i, 'particulars' => 'Sample particulars '.$i, 'amount' => number_format($i * 1234.5, 2)])->all(),
+                    'count' => 6, 'total' => number_format(1234.5 * 21, 2)],
                 'prepared_by' => $request->user()->name,
             ] : [
                 'org_name' => \App\Support\Settings::get('org_name'), 'org_address' => \App\Support\Settings::get('org_address'),
@@ -174,6 +178,23 @@ class PrintingController extends Controller
             ],
             'globalOffset' => ['x' => (float) \App\Support\Settings::get('print_offset_x_mm', 0), 'y' => (float) \App\Support\Settings::get('print_offset_y_mm', 0)],
         ]);
+    }
+
+    /** How many breakdown rows will not fit in the template's table (0 when everything fits). */
+    private function overflowRows(Cheque $c): int
+    {
+        $table = collect($this->service->templateFor($c)?->layout['fields'] ?? [])->firstWhere('type', 'table');
+        if (! $table) {
+            return 0;
+        }
+        $max = (int) ($table['max_rows'] ?? 15);
+        $count = $c->lines->count();
+        if (($table['overflow'] ?? 'schedule') === 'shrink') {
+            $factor = max(min((float) ($table['min_font_size'] ?? 7), (float) $table['font_size']) / (float) $table['font_size'], $max / max($count, 1));
+            $max = (int) floor($max / $factor);
+        }
+
+        return max(0, $count - $max);
     }
 
     private function job(PrintJob $j): array

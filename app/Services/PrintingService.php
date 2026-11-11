@@ -29,7 +29,7 @@ class PrintingService
     public function load(string $category, array $ids, bool $lock = false): Collection
     {
         $q = $category === 'cheque'
-            ? Cheque::with('bankAccount.bank', 'bankAccount.template', 'payee', 'creator')
+            ? Cheque::with('bankAccount.bank', 'bankAccount.template', 'payee', 'creator', 'lines')
             : Receipt::with('payee', 'category', 'creator');
 
         return $q->whereIn('id', $ids)->when($lock, fn ($x) => $x->lockForUpdate())->get();
@@ -96,6 +96,7 @@ class PrintingService
             $acct = $record->bankAccount;
 
             return [
+                'breakdown' => $this->breakdown($record),
                 'payee_line' => $record->printed_payee,
                 'amount_number' => number_format((float) $record->amount, 2, '.', ','),
                 'amount_words' => $record->amount_words,
@@ -122,6 +123,20 @@ class PrintingService
             'prepared_by' => $prepared,
             'printed_on' => now()->toDateString(),
         ];
+    }
+
+    /** Breakdown rows as the print renderer's table field expects them (amounts already formatted). */
+    public function breakdown(Cheque $c): array
+    {
+        $rows = $c->lines->map(fn ($l) => [
+            'line_date' => $l->line_date?->toDateString(),
+            'reference_no' => (string) $l->reference_no,
+            'vendor' => (string) $l->vendor,
+            'particulars' => (string) $l->particulars,
+            'amount' => number_format((float) $l->amount, 2, '.', ','),
+        ])->values()->all();
+
+        return ['rows' => $rows, 'count' => count($rows), 'total' => $rows ? number_format((float) $c->linesTotal(), 2, '.', ',') : ''];
     }
 
     public function templatePayload(?PrintTemplate $t): ?array

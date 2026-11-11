@@ -6,9 +6,20 @@ import PrintSheet, { SheetFrame } from '@/Components/PrintSheet';
 import { Banner, Field, PageHeader, Spinner } from '@/Components/ui';
 
 const SAMPLE = {
-    cheque: { payee_line: 'SAMPLE PAYEE NAME CORPORATION', amount_number: '1,234,567.89', amount_words: 'ONE MILLION TWO HUNDRED THIRTY FOUR THOUSAND FIVE HUNDRED SIXTY SEVEN AND 89/100 PESOS ONLY', date: '2026-11-09', check_no: '0000094658', purpose: 'Sample purpose of payment', reference: 'REF-0001', prepared_by: 'Prepared By', printed_on: '2026-11-09', bank_account_name: 'ACCOUNT NAME' },
+    cheque: { payee_line: 'SAMPLE PAYEE NAME CORPORATION', amount_number: '1,234,567.89', amount_words: 'ONE MILLION TWO HUNDRED THIRTY FOUR THOUSAND FIVE HUNDRED SIXTY SEVEN AND 89/100 PESOS ONLY', date: '2026-11-09', check_no: '0000094658', purpose: 'Sample purpose of payment', reference: 'REF-0001', breakdown: SAMPLE_BREAKDOWN, prepared_by: 'Prepared By', printed_on: '2026-11-09', bank_account_name: 'ACCOUNT NAME' },
     receipt: { org_name: 'Your Organization', org_address: '123 Sample Street, City', receipt_no: 'OR-0001', date: '2026-11-09', vendor: 'Sample Vendor Inc.', description: 'Sample description of goods', amount_number: '1,234.56', tax: '₱148.15', reference: 'REF-1', prepared_by: 'Prepared By', printed_on: '2026-11-09' },
 };
+const SAMPLE_BREAKDOWN = {
+    rows: [['2026-11-02', 'OR-1001', 'Sample Supplies Inc.', 'Office supplies', '10,000.00'], ['2026-11-03', 'INV-2201', 'Toner World Corp.', 'Toner cartridges', '25,500.50'], ['2026-11-04', 'OR-1003', 'Sample Supplies Inc.', 'Bond paper', '3,000.00']]
+        .map(([line_date, reference_no, vendor, particulars, amount]) => ({ line_date, reference_no, vendor, particulars, amount })),
+    count: 3, total: '38,500.50',
+};
+const DEFAULT_COLUMNS = [
+    { key: 'line_date', label: 'DATE', x: 0, width: 18, align: 'left' }, { key: 'reference_no', label: 'OR / INV NO.', x: 20, width: 28, align: 'left' },
+    { key: 'vendor', label: 'VENDOR', x: 50, width: 42, align: 'left' }, { key: 'particulars', label: 'PARTICULARS', x: 94, width: 52, align: 'left' },
+    { key: 'amount', label: 'AMOUNT', x: 148, width: 32, align: 'right' },
+];
+const COLUMN_KEYS = [['line_date', 'Date'], ['reference_no', 'OR / invoice no.'], ['vendor', 'Vendor'], ['particulars', 'Particulars'], ['amount', 'Amount']];
 const MM = 3.7795;
 const FORMATS = [['', 'Plain text'], ['date_segmented', 'Date in boxes (MMDDYYYY)'], ['date_long', 'Long date'], ['amount_stars', 'Amount with ** **']];
 
@@ -66,13 +77,18 @@ export default function Edit({ template, sources, kind }) {
         const n = { key: `field_${fields.length + 1}`, source: sources[kind][0], x: 20, y: 20 + fields.length * 8, width: 80, font_size: 11, align: 'left', uppercase: kind === 'cheque', max_lines: 1, format: '', region: kind };
         setData('layout', { ...data.layout, fields: [...fields, n] }); setSel(fields.length);
     };
+    const addTable = () => {
+        const n = { key: 'breakdown', source: 'breakdown', type: 'table', region: 'advice', x: 12, y: 100, width: 180, font_size: 9, align: 'left', uppercase: false, max_lines: 1,
+            row_height: 4, max_rows: 15, header: true, total: true, total_label: 'TOTAL', overflow: 'schedule', min_font_size: 7, columns: DEFAULT_COLUMNS.map((c) => ({ ...c })) };
+        setData('layout', { ...data.layout, fields: [...fields, n] }); setSel(fields.length);
+    };
     const remove = (i) => { setData('layout', { ...data.layout, fields: fields.filter((_, k) => k !== i) }); setSel(null); };
     const f = sel !== null ? fields[sel] : null;
 
     const save = () => {
         form.transform((d) => ({
             ...d, is_active: d.is_active ? 1 : 0, background: d.background,
-            layout: { ...d.layout, fields: d.layout.fields.map((x) => ({ ...x, uppercase: x.uppercase ? 1 : 0, bold: x.bold ? 1 : 0, format: x.format || null, max_lines: x.max_lines || 1 })) },
+            layout: { ...d.layout, fields: d.layout.fields.map((x) => ({ ...x, uppercase: x.uppercase ? 1 : 0, bold: x.bold ? 1 : 0, format: x.format || null, max_lines: x.max_lines || 1, ...(x.type === 'table' ? { header: x.header === false || x.header === 0 ? 0 : 1, total: x.total === false || x.total === 0 ? 0 : 1 } : {}) })) },
         }));
         editing ? form.post(route('admin.templates.update', template.id), { preserveScroll: true, forceFormData: true }) : form.post(route('admin.templates.store'), { forceFormData: true });
     };
@@ -114,13 +130,14 @@ export default function Edit({ template, sources, kind }) {
                     </div>
 
                     <div className="card">
-                        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3"><p className="card-title">Fields</p><button className="btn-secondary btn-sm" onClick={add}><Icon name="plus" className="h-3.5 w-3.5" /> Add</button></div>
+                        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3"><p className="card-title">Fields</p><button className="btn-secondary btn-sm" onClick={add}><Icon name="plus" className="h-3.5 w-3.5" /> Add</button>{kind === 'cheque' && !fields.some((x) => x.type === 'table') && <button className="btn-secondary btn-sm" onClick={addTable}><Icon name="list" className="h-3.5 w-3.5" /> Add table</button>}</div>
                         <ul className="max-h-48 divide-y divide-slate-100 overflow-auto">
                             {fields.map((x, i) => <li key={i}><button className={`flex w-full items-center justify-between px-5 py-2 text-left text-sm ${sel === i ? 'bg-brand-50 font-medium text-brand-800' : 'hover:bg-slate-50'}`} onClick={() => setSel(i)}><span>{x.key}<span className="ml-2 text-xs text-slate-400">{x.source}</span></span><span className="font-mono text-[11px] text-slate-400">{x.x}, {x.y}</span></button></li>)}
                         </ul>
                     </div>
 
-                    {f && (
+                    {f && f.type === 'table' && <TablePanel f={f} sel={sel} setField={setField} remove={remove} />}
+                    {f && f.type !== 'table' && (
                         <div className="card card-pad space-y-3">
                             <div className="flex items-center justify-between"><p className="card-title">Field: {f.key}</p><button className="text-xs font-medium text-red-600 hover:underline" onClick={() => remove(sel)}>Remove</button></div>
                             <Field label="Name"><input className="input" value={f.key} onChange={(e) => setField(sel, { key: e.target.value })} /></Field>
@@ -149,5 +166,51 @@ export default function Edit({ template, sources, kind }) {
                 </div>
             </div>
         </AuthenticatedLayout>
+    );
+}
+
+
+function TablePanel({ f, sel, setField, remove }) {
+    const cols = f.columns ?? [];
+    const setCol = (i, patch) => setField(sel, { columns: cols.map((c, k) => (k === i ? { ...c, ...patch } : c)) });
+    const num = (k, step = 0.1) => (e) => setField(sel, { [k]: Number(e.target.value) });
+    return (
+        <div className="card card-pad space-y-3">
+            <div className="flex items-center justify-between"><p className="card-title">Breakdown table</p><button className="text-xs font-medium text-red-600 hover:underline" onClick={() => remove(sel)}>Remove</button></div>
+            <p className="text-xs text-slate-500">Prints the cheque's breakdown rows. Drag the block on the sheet to position it.</p>
+            <div className="grid grid-cols-3 gap-2">
+                <Field label="X (mm)"><input type="number" step="0.1" className="input" value={f.x} onChange={num('x')} /></Field>
+                <Field label="Y (mm)"><input type="number" step="0.1" className="input" value={f.y} onChange={num('y')} /></Field>
+                <Field label="Width"><input type="number" step="0.1" className="input" value={f.width} onChange={num('width')} /></Field>
+                <Field label="Font (pt)"><input type="number" step="0.5" className="input" value={f.font_size} onChange={num('font_size')} /></Field>
+                <Field label="Row height"><input type="number" step="0.1" min="2" className="input" value={f.row_height ?? 4} onChange={num('row_height')} /></Field>
+                <Field label="Rows that fit"><input type="number" min="1" className="input" value={f.max_rows ?? 15} onChange={(e) => setField(sel, { max_rows: Number(e.target.value) })} /></Field>
+            </div>
+            <Field label="When there are more rows" hint={f.overflow === 'shrink' ? 'Shrinks the text down to the minimum size, then uses the attached schedule.' : 'Prints the rows that fit plus "see attached schedule"; the full list prints on plain A4.'}>
+                <select className="input" value={f.overflow ?? 'schedule'} onChange={(e) => setField(sel, { overflow: e.target.value })}><option value="schedule">Attached schedule</option><option value="shrink">Shrink to fit first</option></select>
+            </Field>
+            {f.overflow === 'shrink' && <Field label="Smallest font (pt)"><input type="number" step="0.5" className="input" value={f.min_font_size ?? 7} onChange={num('min_font_size')} /></Field>}
+            <div className="flex flex-wrap gap-5 text-sm">
+                <label className="flex items-center gap-2"><input type="checkbox" className="rounded border-slate-300 text-brand-600" checked={f.header !== false && f.header !== 0} onChange={(e) => setField(sel, { header: e.target.checked })} /> Header row</label>
+                <label className="flex items-center gap-2"><input type="checkbox" className="rounded border-slate-300 text-brand-600" checked={f.total !== false && f.total !== 0} onChange={(e) => setField(sel, { total: e.target.checked })} /> Total row</label>
+                <label className="flex items-center gap-2"><input type="checkbox" className="rounded border-slate-300 text-brand-600" checked={!!f.uppercase} onChange={(e) => setField(sel, { uppercase: e.target.checked })} /> UPPERCASE</label>
+            </div>
+            <div>
+                <p className="label">Columns (x is measured from the table's left edge)</p>
+                <div className="space-y-1.5">
+                    {cols.map((c, i) => (
+                        <div key={i} className="grid grid-cols-[1fr_1fr_3.2rem_3.2rem_4.2rem_1.5rem] items-center gap-1">
+                            <select className="input !py-1 text-xs" value={c.key} onChange={(e) => setCol(i, { key: e.target.value })}>{COLUMN_KEYS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
+                            <input className="input !py-1 text-xs" placeholder="Heading" value={c.label ?? ''} onChange={(e) => setCol(i, { label: e.target.value })} />
+                            <input type="number" step="0.5" className="input !px-1 !py-1 text-xs" title="x (mm)" value={c.x} onChange={(e) => setCol(i, { x: Number(e.target.value) })} />
+                            <input type="number" step="0.5" className="input !px-1 !py-1 text-xs" title="width (mm)" value={c.width} onChange={(e) => setCol(i, { width: Number(e.target.value) })} />
+                            <select className="input !px-1 !py-1 text-xs" value={c.align} onChange={(e) => setCol(i, { align: e.target.value })}><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select>
+                            <button type="button" className="text-slate-400 hover:text-red-600" aria-label="Remove column" onClick={() => setField(sel, { columns: cols.filter((_, k) => k !== i) })}><Icon name="x" className="h-3.5 w-3.5" /></button>
+                        </div>
+                    ))}
+                </div>
+                {cols.length < 8 && <button type="button" className="mt-2 text-xs font-medium text-brand-700 hover:underline" onClick={() => setField(sel, { columns: [...cols, { key: 'particulars', label: '', x: 0, width: 30, align: 'left' }] })}>+ Add column</button>}
+            </div>
+        </div>
     );
 }

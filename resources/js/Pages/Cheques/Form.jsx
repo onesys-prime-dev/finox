@@ -3,7 +3,7 @@ import { Head, router, useForm, usePage } from '@inertiajs/react';
 import axios from 'axios';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Icon from '@/Components/Icon';
-import ChequeBreakdown from '@/Components/ChequeBreakdown';
+import ChequeBreakdown, { linesTotalCents } from '@/Components/ChequeBreakdown';
 import PayeeSelect from '@/Components/PayeeSelect';
 import PrintSheet, { SheetFrame } from '@/Components/PrintSheet';
 import { Banner, Field, PageHeader, Spinner } from '@/Components/ui';
@@ -27,7 +27,7 @@ export default function Form({ cheque, accounts, locked = false, duplicateOf }) 
     const [payee, setPayee] = useState(cheque?.payee_id ? { id: cheque.payee_id, name: cheque.payee_name } : null);
     const [dup, setDup] = useState(null);
     const [lineOpen, setLineOpen] = useState(!!cheque?.payee_line);
-    const [full, setFull] = useState(false);
+    const [view, setView] = useState('cheque'); // cheque | advice | full
     const [dirty, setDirty] = useState(false);
     const formRef = useRef();
 
@@ -84,6 +84,11 @@ export default function Form({ cheque, accounts, locked = false, duplicateOf }) 
     const values = {
         payee_line: data.is_cash ? 'CASH' : (data.payee_line || payee?.name || ''),
         amount_number: amountOk ? Number(data.amount.replace(/,/g, '')).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '',
+        breakdown: (() => {
+            const rows = data.lines.filter((l) => parseAmount(l.amount)).map((l) => ({ line_date: l.line_date, reference_no: l.reference_no, vendor: l.vendor, particulars: l.particulars,
+                amount: Number(String(l.amount).replace(/,/g, '')).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }));
+            return { rows, count: rows.length, total: rows.length ? (linesTotalCents(data.lines) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '' };
+        })(),
         amount_words: words, date: data.cheque_date, check_no: data.cheque_number, purpose: data.purpose, reference: data.reference_no, prepared_by: auth.user.name,
     };
     const tpl = account?.template;
@@ -168,11 +173,17 @@ export default function Form({ cheque, accounts, locked = false, duplicateOf }) 
                     <div className="card card-pad">
                         <div className="mb-3 flex items-center justify-between">
                             <p className="card-title">Live preview</p>
-                            {tpl && <button className="text-xs font-medium text-brand-700 hover:underline" onClick={() => setFull(!full)}>{full ? 'Show cheque only' : 'Show full sheet'}</button>}
+                            {tpl && (
+                                <div className="flex gap-1 rounded-lg bg-slate-100 p-0.5 text-xs font-medium">
+                                    {[['cheque', 'Cheque'], ['advice', 'Advice'], ['full', 'Full sheet']].map(([v, l]) => (
+                                        <button key={v} type="button" onClick={() => setView(v)} className={`rounded-md px-2 py-1 ${view === v ? 'bg-white shadow-sm' : 'text-slate-500'}`}>{l}</button>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                         {tpl ? (
                             <div className="overflow-x-auto">
-                                <SheetFrame template={tpl} scale={scale} crop={full ? null : tpl.layout?.preview_crop}>
+                                <SheetFrame template={tpl} scale={scale} crop={view === 'cheque' ? tpl.layout?.preview_crop : view === 'advice' ? (tpl.layout?.advice_crop ?? null) : null}>
                                     <PrintSheet template={tpl} values={values} showBackground scale={scale} />
                                 </SheetFrame>
                             </div>

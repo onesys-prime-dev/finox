@@ -115,6 +115,32 @@ class ChequeController extends Controller
         ]);
     }
 
+    /** Full breakdown on plain A4, for when the rows do not fit on the Payment Advice. */
+    public function schedule(Cheque $cheque): Response
+    {
+        $this->authorize('view', $cheque);
+        $cheque->load('lines', 'payee', 'bankAccount.bank', 'creator:id,name');
+
+        return Inertia::render('Cheques/Schedule', [
+            'cheque' => [
+                'id' => $cheque->id, 'cheque_number' => $cheque->cheque_number, 'cheque_date' => $cheque->cheque_date->toDateString(),
+                'payee' => $cheque->printed_payee, 'amount' => (string) $cheque->amount, 'purpose' => $cheque->purpose, 'reference_no' => $cheque->reference_no,
+                'bank_account' => $cheque->bankAccount?->display_name, 'prepared_by' => $cheque->creator?->name,
+                'lines' => $this->linesPayload($cheque), 'lines_total' => $cheque->linesTotal(),
+            ],
+            'org' => \App\Support\Settings::get('org_name'),
+            'by' => request()->user()->name,
+        ]);
+    }
+
+    public function schedulePrinted(Cheque $cheque): \Illuminate\Http\JsonResponse
+    {
+        $this->authorize('view', $cheque);
+        \App\Services\ActivityLogService::log('cheque.schedule_printed', 'printing', "Printed breakdown schedule for cheque {$cheque->cheque_number}", $cheque);
+
+        return response()->json(['ok' => true]);
+    }
+
     public function edit(Cheque $cheque): Response
     {
         $this->authorize('update', $cheque);

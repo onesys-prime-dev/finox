@@ -181,6 +181,9 @@ export default function Index({ category, ready, awaiting, failed, accounts, ban
                                     <label className="mt-3 flex items-start gap-2 text-xs text-amber-900"><input type="checkbox" className="mt-0.5 rounded border-amber-400 text-brand-600" checked={ack} onChange={(e) => setAck(e.target.checked)} /> I understand the earlier paper cheque must be destroyed or accounted for.</label>
                                 </div>
                             )}
+                            {preview.pages.filter((p) => p.overflow_rows > 0).map((p) => (
+                                <Banner key={p.id} tone="warn"><b>{p.label}</b>: {p.overflow_rows} breakdown row(s) will not fit on the advice. It prints “see attached schedule”. <a className="font-semibold underline" target="_blank" href={route('cheques.schedule', p.id)}>Open the A4 schedule</a> to print the full list.</Banner>
+                            ))}
                             {!isReprint && preview.pages.some((p) => p.warn_printed) && <Banner tone="warn">One or more of these cheques was already printed.</Banner>}
                             <p className="text-xs text-slate-500">Pre-printed details (cheque no., account, MICR) are not printed.</p>
                         </div>

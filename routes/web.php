@@ -39,6 +39,8 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::post('/', [ChequeController::class, 'store'])->middleware('once')->name('store');
         Route::post('/bulk-prepare', [ChequeController::class, 'bulkPrepare'])->name('bulk-prepare');
         Route::get('/{cheque}', [ChequeController::class, 'show'])->name('show');
+        Route::get('/{cheque}/schedule', [ChequeController::class, 'schedule'])->name('schedule');
+        Route::post('/{cheque}/schedule/printed', [ChequeController::class, 'schedulePrinted'])->name('schedule.printed');
         Route::get('/{cheque}/edit', [ChequeController::class, 'edit'])->name('edit');
         Route::put('/{cheque}', [ChequeController::class, 'update'])->name('update');
         Route::post('/{cheque}/prepare', [ChequeController::class, 'prepare'])->name('prepare');

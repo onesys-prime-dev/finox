@@ -27,6 +27,7 @@ class ReportController extends Controller
         'cheques-cleared' => ['Cleared Cheques', 'Cheques', 'reports.view'],
         'cheques-bounced' => ['Bounced Cheques', 'Cheques', 'reports.view'],
         'cheques-stopped' => ['Cancelled & Voided Cheques', 'Cheques', 'reports.view'],
+        'cheque-breakdown' => ['Cheque Breakdown (OR / invoice lines)', 'Cheques', 'reports.view'],
         'receipt-register' => ['Receipt Register', 'Receipts', 'reports.view'],
         'receipts-daily' => ['Daily Receipt Report', 'Receipts', 'reports.view'],
         'receipts-monthly' => ['Monthly Receipt Report', 'Receipts', 'reports.view'],
@@ -59,7 +60,7 @@ class ReportController extends Controller
         return Inertia::render('Reports/Show', [
             'report' => $report, 'title' => $title, 'columns' => $columns, 'rows' => array_slice($rows, 0, $cap), 'summary' => $summary,
             'totalRows' => $total, 'truncated' => $total > $cap,
-            'filters' => $request->only('from', 'to', 'status', 'bank_account_id', 'user_id', 'all'),
+            'filters' => $request->only('from', 'to', 'status', 'bank_account_id', 'user_id', 'all', 'q'),
             'accounts' => BankAccount::with('bank:id,name')->get()->map(fn ($a) => ['id' => $a->id, 'label' => $a->display_name]),
             'users' => \App\Models\User::orderBy('name')->get(['id', 'name']),
             'org' => \App\Support\Settings::get('org_name'),
@@ -168,6 +169,31 @@ class ReportController extends Controller
                 $rows = $chequeRows($cq()->whereIn('status', ['cancelled', 'voided']));
 
                 return [$title, $chequeCols, $rows, $sumC($rows)];
+            case 'cheque-breakdown':
+                $q = \Illuminate\Support\Facades\DB::table('cheque_lines as l')
+                    ->join('cheques as c', 'c.id', '=', 'l.cheque_id')->join('bank_accounts as a', 'a.id', '=', 'c.bank_account_id')
+                    ->join('banks as b', 'b.id', '=', 'a.bank_id')->join('payees as p', 'p.id', '=', 'c.payee_id');
+                $date($q, 'c.cheque_date');
+                $q->when($r->status, fn ($x, $v) => $x->where('c.status', $v))
+                    ->when($r->bank_account_id, fn ($x, $v) => $x->where('c.bank_account_id', $v))
+                    ->when($r->user_id, fn ($x, $v) => $x->where('c.created_by', $v))
+                    ->when(trim((string) $r->q) !== '', fn ($x) => $x->where(fn ($w) => $w->where('l.reference_no', 'like', '%'.trim($r->q).'%')
+                        ->orWhere('l.vendor', 'like', '%'.trim($r->q).'%')->orWhere('l.particulars', 'like', '%'.trim($r->q).'%')
+                        ->orWhere('c.cheque_number', 'like', '%'.trim($r->q).'%')));
+                $raw = $q->orderBy('c.cheque_date')->orderBy('c.id')->orderBy('l.line_no')
+                    ->select('c.cheque_number', 'c.cheque_date', 'c.status', 'b.name as bank_name', 'c.is_cash', 'c.payee_line', 'p.name as payee_name',
+                        'l.line_date', 'l.reference_no', 'l.vendor', 'l.particulars', 'l.amount')->get();
+                $rows = $raw->map(fn ($x) => [
+                    'number' => $x->cheque_number, 'date' => substr((string) $x->cheque_date, 0, 10), 'status' => $x->status, 'bank' => $x->bank_name,
+                    'payee' => $x->is_cash ? 'CASH' : ($x->payee_line ?: $x->payee_name),
+                    'line_date' => $x->line_date ? substr((string) $x->line_date, 0, 10) : null, 'reference' => $x->reference_no, 'vendor' => $x->vendor,
+                    'particulars' => $x->particulars, 'amount' => (string) $x->amount,
+                ])->all();
+                $live = array_filter($rows, fn ($x) => ! in_array($x['status'], ['cancelled', 'voided'], true));
+
+                return [$title, [$col('number', 'Cheque No.'), $col('date', 'Cheque date', 'date'), $col('status', 'Status', 'status'), $col('bank', 'Bank'), $col('payee', 'Payee'),
+                    $col('line_date', 'Line date', 'date'), $col('reference', 'OR / invoice no.'), $col('vendor', 'Vendor'), $col('particulars', 'Particulars'), $col('amount', 'Amount', 'money')], $rows,
+                    [['label' => 'Rows', 'value' => count($rows)], ['label' => 'Total (excl. cancelled & voided)', 'value' => Money::format(Money::sum(array_column($live, 'amount')))]]];
             case 'receipt-register':
                 $rows = $receiptRows($rq());
 

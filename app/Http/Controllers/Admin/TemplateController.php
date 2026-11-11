@@ -18,7 +18,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class TemplateController extends Controller
 {
     private const SOURCES = [
-        'cheque' => ['payee_line', 'amount_number', 'amount_words', 'date', 'check_no', 'purpose', 'reference', 'prepared_by', 'printed_on', 'bank_account_name', 'free_text'],
+        'cheque' => ['payee_line', 'amount_number', 'amount_words', 'date', 'check_no', 'purpose', 'reference', 'prepared_by', 'printed_on', 'bank_account_name', 'breakdown', 'free_text'],
         'receipt' => ['org_name', 'org_address', 'receipt_no', 'date', 'vendor', 'description', 'amount_number', 'tax', 'reference', 'prepared_by', 'printed_on', 'free_text'],
     ];
 
@@ -145,6 +145,19 @@ class TemplateController extends Controller
             'layout.fields.*.label' => 'nullable|string|max:60', 'layout.fields.*.text' => 'nullable|string|max:200',
             'layout.fields.*.char_x' => 'nullable|array', 'layout.fields.*.char_x.*' => 'numeric',
             'layout.fields.*.uppercase' => 'boolean', 'layout.fields.*.bold' => 'boolean',
+            // Table field (breakdown rows)
+            'layout.fields.*.type' => 'nullable|in:text,table',
+            'layout.fields.*.row_height' => 'nullable|numeric|min:2|max:20',
+            'layout.fields.*.max_rows' => 'nullable|integer|min:1|max:60',
+            'layout.fields.*.header' => 'nullable|boolean', 'layout.fields.*.total' => 'nullable|boolean',
+            'layout.fields.*.total_label' => 'nullable|string|max:30',
+            'layout.fields.*.overflow' => 'nullable|in:schedule,shrink',
+            'layout.fields.*.min_font_size' => 'nullable|numeric|min:5|max:14',
+            'layout.fields.*.columns' => 'nullable|array|max:8',
+            'layout.fields.*.columns.*.key' => 'required|in:line_date,reference_no,vendor,particulars,amount',
+            'layout.fields.*.columns.*.label' => 'nullable|string|max:30',
+            'layout.fields.*.columns.*.x' => 'required|numeric', 'layout.fields.*.columns.*.width' => 'required|numeric|min:2',
+            'layout.fields.*.columns.*.align' => 'required|in:left,center,right',
             'background' => 'nullable|file|max:10240',
         ]);
         unset($data['background']);
