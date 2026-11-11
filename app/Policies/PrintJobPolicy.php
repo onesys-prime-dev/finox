@@ -14,6 +14,6 @@ class PrintJobPolicy
 
     public function confirm(User $u, PrintJob $j): bool
     {
-        return $u->hasPermission('print.print');
+        return $this->view($u, $j);
     }
 }

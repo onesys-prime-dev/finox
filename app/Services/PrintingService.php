@@ -26,13 +26,13 @@ class PrintingService
         return $category === 'cheque' ? Cheque::class : Receipt::class;
     }
 
-    public function load(string $category, array $ids): Collection
+    public function load(string $category, array $ids, bool $lock = false): Collection
     {
         $q = $category === 'cheque'
             ? Cheque::with('bankAccount.bank', 'bankAccount.template', 'payee', 'creator')
             : Receipt::with('payee', 'category', 'creator');
 
-        return $q->whereIn('id', $ids)->get();
+        return $q->whereIn('id', $ids)->when($lock, fn ($x) => $x->lockForUpdate())->get();
     }
 
     public function templateFor(Model $record): ?PrintTemplate
@@ -80,6 +80,11 @@ class PrintingService
             }
         }
 
+        // One print job = one paper size/layout: the browser applies a single @page size to the whole job.
+        if (! $failures && $records->map(fn ($r) => $this->templateFor($r)?->id)->unique()->count() > 1) {
+            $failures[0] = 'These items use different print templates. Print them in separate jobs (filter the queue by bank account).';
+        }
+
         return ['failures' => $failures, 'ok' => empty($failures)];
     }
 
@@ -124,7 +129,9 @@ class PrintingService
         return $t ? [
             'id' => $t->id, 'name' => $t->name, 'kind' => $t->kind, 'version' => $t->version,
             'paper_width_mm' => $t->paper_width_mm, 'paper_height_mm' => $t->paper_height_mm,
-            'offset_x_mm' => $t->offset_x_mm, 'offset_y_mm' => $t->offset_y_mm,
+            // The system-wide default shift is added on top of the template's own offset.
+            'offset_x_mm' => (float) $t->offset_x_mm + (float) Settings::get('print_offset_x_mm', 0),
+            'offset_y_mm' => (float) $t->offset_y_mm + (float) Settings::get('print_offset_y_mm', 0),
             'background_url' => $t->background_url, 'layout' => $t->layout,
         ] : null;
     }
@@ -135,19 +142,21 @@ class PrintingService
      */
     public function start(User $user, string $category, array $ids, bool $reprint, ?string $reason, array $settings = []): PrintJob
     {
-        $records = $this->load($category, $ids);
-        if ($records->count() !== count(array_unique($ids))) {
-            throw ValidationException::withMessages(['ids' => 'Some selected records no longer exist.']);
-        }
-        $check = $this->eligibility($category, $records, $reprint, $user);
-        if (! $check['ok']) {
-            throw ValidationException::withMessages(['ids' => implode(' ', $check['failures'])]);
-        }
         if ($reprint && trim((string) $reason) === '') {
             throw ValidationException::withMessages(['reason' => 'A reason is required to reprint.']);
         }
 
-        return DB::transaction(function () use ($user, $category, $records, $reprint, $reason, $settings) {
+        return DB::transaction(function () use ($user, $category, $ids, $reprint, $reason, $settings) {
+            // Lock the rows, then check eligibility on the locked state so two simultaneous
+            // print requests cannot both take the same Prepared cheque.
+            $records = $this->load($category, $ids, lock: true);
+            if ($records->count() !== count(array_unique($ids))) {
+                throw ValidationException::withMessages(['ids' => 'Some selected records no longer exist.']);
+            }
+            $check = $this->eligibility($category, $records, $reprint, $user);
+            if (! $check['ok']) {
+                throw ValidationException::withMessages(['ids' => implode(' ', $check['failures'])]);
+            }
             $job = PrintJob::create([
                 'user_id' => $user->id,
                 'category' => $category,

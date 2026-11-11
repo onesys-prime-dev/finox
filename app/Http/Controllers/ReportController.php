@@ -83,6 +83,13 @@ class ReportController extends Controller
         return \App\Support\TableExport::stream($report, $fmt, array_column($columns, 'label'), $out, $numeric);
     }
 
+    private const LOG_CAP = 5000;
+
+    private function capNote(bool $more): array
+    {
+        return $more ? [['label' => 'Note', 'value' => 'Only the most recent '.number_format(self::LOG_CAP).' entries are included — narrow the date range for the rest']] : [];
+    }
+
     private function allowed($u, string $perm): bool
     {
         return $u->hasPermission($perm) || ($perm === 'reports.printing' && $u->hasPermission('reports.view'));
@@ -193,24 +200,27 @@ class ReportController extends Controller
                 return [$title, [$col('type', 'Type'), $col('status', 'Status', 'status'), $col('count', 'Count'), $col('amount', 'Amount', 'money')], $rows,
                     [['label' => 'Note', 'value' => 'Cheque and receipt amounts are never combined']]];
             case 'printing-history':
-                $q = $date(PrintLog::with('user:id,name', 'job')->latest('id'), 'created_at')->limit(1000)->get();
+                $q = $date(PrintLog::with('user:id,name', 'job')->latest('id'), 'created_at')->limit(self::LOG_CAP + 1)->get();
+                $more = $q->count() > self::LOG_CAP; $q = $q->take(self::LOG_CAP);
                 $rows = $q->map(fn ($l) => [
                     'at' => $l->created_at->toDateTimeString(), 'type' => $l->printable_type, 'record' => $l->printable_id,
                     'user' => $l->user?->name, 'reprint' => $l->is_reprint ? 'Yes' : 'No', 'status' => $l->status, 'reason' => $l->job?->reason,
                 ])->all();
 
                 return [$title, [$col('at', 'When'), $col('type', 'Type'), $col('record', 'Record #'), $col('user', 'By'), $col('reprint', 'Reprint'), $col('status', 'Result', 'status'), $col('reason', 'Reason')], $rows,
-                    [['label' => 'Entries', 'value' => count($rows)], ['label' => 'Reprints', 'value' => collect($rows)->where('reprint', 'Yes')->count()]]];
+                    array_merge([['label' => 'Entries', 'value' => count($rows)], ['label' => 'Reprints', 'value' => collect($rows)->where('reprint', 'Yes')->count()]], $this->capNote($more))];
             case 'user-activity':
-                $q = $date(ActivityLog::with('user:id,name')->when($r->user_id, fn ($q, $v) => $q->where('user_id', $v))->latest('id'), 'created_at')->limit(1000)->get();
+                $q = $date(ActivityLog::with('user:id,name')->when($r->user_id, fn ($q, $v) => $q->where('user_id', $v))->latest('id'), 'created_at')->limit(self::LOG_CAP + 1)->get();
+                $more = $q->count() > self::LOG_CAP; $q = $q->take(self::LOG_CAP);
                 $rows = $q->map(fn ($l) => ['at' => $l->created_at->toDateTimeString(), 'user' => $l->user?->name, 'module' => $l->module, 'action' => $l->action, 'description' => $l->description, 'reason' => $l->reason])->all();
 
-                return [$title, [$col('at', 'When'), $col('user', 'User'), $col('module', 'Module'), $col('action', 'Action'), $col('description', 'Description'), $col('reason', 'Reason')], $rows, [['label' => 'Entries', 'value' => count($rows)]]];
+                return [$title, [$col('at', 'When'), $col('user', 'User'), $col('module', 'Module'), $col('action', 'Action'), $col('description', 'Description'), $col('reason', 'Reason')], $rows, array_merge([['label' => 'Entries', 'value' => count($rows)]], $this->capNote($more))];
             case 'document-uploads':
-                $q = $date(DocumentFile::with('uploader:id,name')->where('version', 1)->latest('id'), 'created_at')->limit(1000)->get();
+                $q = $date(DocumentFile::with('uploader:id,name')->where('version', 1)->latest('id'), 'created_at')->limit(self::LOG_CAP + 1)->get();
+                $more = $q->count() > self::LOG_CAP; $q = $q->take(self::LOG_CAP);
                 $rows = $q->map(fn ($d) => ['at' => $d->created_at->toDateTimeString(), 'name' => $d->original_name, 'category' => $d->category, 'size' => round($d->size / 1024).' KB', 'user' => $d->uploader?->name])->all();
 
-                return [$title, [$col('at', 'Uploaded'), $col('name', 'File'), $col('category', 'Category'), $col('size', 'Size'), $col('user', 'By')], $rows, [['label' => 'Files', 'value' => count($rows)]]];
+                return [$title, [$col('at', 'Uploaded'), $col('name', 'File'), $col('category', 'Category'), $col('size', 'Size'), $col('user', 'By')], $rows, array_merge([['label' => 'Files', 'value' => count($rows)]], $this->capNote($more))];
         }
         abort(404);
     }

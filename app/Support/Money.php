@@ -13,7 +13,14 @@ class Money
         if ($value === null) {
             return null;
         }
-        $v = trim(str_replace([',', '₱', 'PHP', ' '], '', (string) $value));
+        $v = trim(str_replace(['₱', 'PHP', ' '], '', (string) $value));
+        // Commas are only accepted as thousands separators ("1,234.50"); "1,5" is ambiguous, so reject it.
+        if (str_contains($v, ',')) {
+            if (! preg_match('/^\d{1,3}(,\d{3})+(\.\d+)?$/', $v)) {
+                return null;
+            }
+            $v = str_replace(',', '', $v);
+        }
         if ($v === '' || ! preg_match('/^\d{1,13}(\.\d{1,2})?$/', $v)) {
             return null;
         }

@@ -202,6 +202,14 @@ class ChequeService
             if (trim($reason) === '') {
                 throw ValidationException::withMessages(['reason' => 'A reason is required.']);
             }
+            // Cancel = never printed (no paper exists); void = paper exists.
+            $neverPrinted = in_array($cheque->status, [ChequeStatus::Draft, ChequeStatus::Prepared], true);
+            if ($kind === 'cancel' && ! $neverPrinted) {
+                throw ValidationException::withMessages(['kind' => 'A printed or released cheque has paper in existence and must be voided, not cancelled.']);
+            }
+            if ($kind === 'void' && $neverPrinted) {
+                throw ValidationException::withMessages(['kind' => 'A cheque that was never printed should be cancelled, not voided.']);
+            }
             if ($kind === 'void' && $cheque->status === ChequeStatus::Released && trim((string) $stopNote) === '') {
                 throw ValidationException::withMessages(['stop_payment_note' => 'A stop-payment note is required when voiding a released cheque.']);
             }

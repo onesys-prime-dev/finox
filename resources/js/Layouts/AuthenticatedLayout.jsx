@@ -198,7 +198,7 @@ function Flash({ flash }) {
             // errors stay a little longer, and temp-password style messages need to be readable
             setTimeout(() => setItems((x) => x.filter((i) => !ids.includes(i.id))), add.some((a) => a.k !== 'success') ? 9000 : 4500);
         }
-    }, [flash.success, flash.error, flash.warning]);
+    }, [flash.id, flash.success, flash.error, flash.warning]);
     const tone = { success: 'border-emerald-200 bg-emerald-50 text-emerald-900', error: 'border-red-200 bg-red-50 text-red-900', warning: 'border-amber-200 bg-amber-50 text-amber-900' };
     const icon = { success: 'check', error: 'alert', warning: 'alert' };
     return (

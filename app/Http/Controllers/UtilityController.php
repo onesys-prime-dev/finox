@@ -27,14 +27,14 @@ class UtilityController extends Controller
             Cheque::visibleTo($u)->with('payee:id,name')->where(fn ($w) => $w->where('cheque_number', 'like', "%{$q}%")->orWhere('reference_no', 'like', "%{$q}%")
                 ->orWhereHas('payee', fn ($p) => $p->where('name', 'like', "%{$q}%")))->latest('id')->limit(6)->get()
                 ->each(function ($c) use (&$out) {
-                    $out[] = ['type' => 'Cheque', 'title' => $c->cheque_number, 'sub' => $c->printed_payee.' · ₱'.number_format((float) $c->amount, 2), 'status' => $c->status->value, 'url' => route('cheques.show', $c)];
+                    $out[] = ['type' => 'Cheque', 'title' => $c->cheque_number, 'sub' => $c->printed_payee.' · '.\App\Support\Money::format($c->amount), 'status' => $c->status->value, 'url' => route('cheques.show', $c)];
                 });
         }
         if ($u->hasPermission('receipts.view') || $u->hasPermission('receipts.view_all')) {
             Receipt::visibleTo($u)->with('payee:id,name')->where(fn ($w) => $w->where('receipt_number', 'like', "%{$q}%")->orWhere('reference_no', 'like', "%{$q}%")
                 ->orWhereHas('payee', fn ($p) => $p->where('name', 'like', "%{$q}%")))->latest('id')->limit(6)->get()
                 ->each(function ($r) use (&$out) {
-                    $out[] = ['type' => 'Receipt', 'title' => $r->receipt_number ?: 'Receipt #'.$r->id, 'sub' => ($r->payee?->name ?? '—').' · ₱'.number_format((float) $r->amount, 2), 'status' => $r->status->value, 'url' => route('receipts.show', $r)];
+                    $out[] = ['type' => 'Receipt', 'title' => $r->receipt_number ?: 'Receipt #'.$r->id, 'sub' => ($r->payee?->name ?? '—').' · '.\App\Support\Money::format($r->amount), 'status' => $r->status->value, 'url' => route('receipts.show', $r)];
                 });
         }
 

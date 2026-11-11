@@ -3,19 +3,19 @@ import { Head, useForm } from '@inertiajs/react';
 import { useState } from 'react';
 import ReceiptFields from '@/Components/ReceiptFields';
 import { PageHeader, Spinner } from '@/Components/ui';
-import { token } from '@/lib/format';
+import { today, token } from '@/lib/format';
 
 export default function Form({ receipt, categories }) {
     const editing = !!receipt;
     const form = useForm({
-        receipt_number: receipt?.receipt_number ?? '', receipt_date: receipt?.receipt_date ?? new Date().toISOString().slice(0, 10), payee_id: receipt?.payee_id ?? '',
+        receipt_number: receipt?.receipt_number ?? '', receipt_date: receipt?.receipt_date ?? today(), payee_id: receipt?.payee_id ?? '',
         description: receipt?.description ?? '', amount: receipt?.amount ?? '', tax_amount: receipt && receipt.tax_amount !== '0.00' ? receipt.tax_amount : '', tax_rate: receipt?.tax_rate ?? '',
         category_id: receipt?.category_id ?? '', cheque_id: receipt?.cheque_id ?? '', reference_no: receipt?.reference_no ?? '', remarks: receipt?.remarks ?? '',
         duplicate_override_reason: '', file: null, _next: 'record', _submit_token: token(),
     });
     const [payee, setPayee] = useState(receipt?.payee_id ? { id: receipt.payee_id, name: receipt.payee_name } : null);
     const save = (next) => {
-        form.transform((d) => ({ ...d, _next: next, amount: String(d.amount ?? '').replace(/,/g, ''), tax_amount: String(d.tax_amount ?? '').replace(/,/g, ''), ...(editing ? { _method: 'put' } : {}) }));
+        form.transform((d) => ({ ...d, _next: next, ...(editing ? { _method: 'put' } : {}) }));
         form.post(editing ? route('receipts.update', receipt.id) : route('receipts.store'), { forceFormData: true, preserveScroll: true });
     };
     return (

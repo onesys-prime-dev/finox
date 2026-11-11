@@ -7,7 +7,7 @@ import PrintSheet, { SheetFrame } from '@/Components/PrintSheet';
 import { Banner, PageHeader } from '@/Components/ui';
 
 export default function Calibrate({ template, sample, globalOffset }) {
-    const [nudge, setNudge] = useState(() => { try { return JSON.parse(localStorage.getItem('finox.print.nudge')) ?? { x: globalOffset.x, y: globalOffset.y }; } catch { return { x: globalOffset.x, y: globalOffset.y }; } });
+    const [nudge, setNudge] = useState(() => { try { return JSON.parse(localStorage.getItem('finox.print.nudge')) ?? { x: 0, y: 0 }; } catch { return { x: globalOffset.x, y: globalOffset.y }; } });
     const [guides, setGuides] = useState(true);
     const [bg, setBg] = useState(true);
     const [printing, setPrinting] = useState(false);

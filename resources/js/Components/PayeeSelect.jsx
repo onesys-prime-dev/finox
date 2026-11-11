@@ -37,7 +37,9 @@ export default function PayeeSelect({ value, onChange, error, autoFocus, disable
 
     const add = async () => {
         setBusy(true);
-        try { const r = await axios.post(route('payees.quick'), { name: q.trim() }); pick(r.data); } finally { setBusy(false); }
+        try { const r = await axios.post(route('payees.quick'), { name: q.trim() }); pick(r.data); }
+        catch (e) { window.alert(e.response?.data?.errors?.name?.[0] ?? e.response?.data?.message ?? 'Could not add the payee.'); }
+        finally { setBusy(false); }
     };
 
     const onKey = (e) => {

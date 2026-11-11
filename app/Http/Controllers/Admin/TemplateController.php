@@ -18,7 +18,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class TemplateController extends Controller
 {
     private const SOURCES = [
-        'cheque' => ['payee_line', 'amount_number', 'amount_words', 'date', 'check_no', 'purpose', 'reference', 'prepared_by', 'printed_on', 'bank_account_name', 'free_text'],
+        'cheque' => ['payee_line', 'amount_number', 'amount_words', 'date', 'check_no', 'purpose', 'reference', 'prepared_by', 'printed_on', 'bank_account_name', 'receipt_refs', 'receipt_amounts', 'receipt_total', 'free_text'],
         'receipt' => ['org_name', 'org_address', 'receipt_no', 'date', 'vendor', 'description', 'amount_number', 'tax', 'reference', 'prepared_by', 'printed_on', 'free_text'],
     ];
 
@@ -55,6 +55,7 @@ class TemplateController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $data = $this->validated($request);
+        $this->assertBackground($request);
         $t = PrintTemplate::create($data + ['version' => 1]);
         $this->saveBackground($request, $t);
         ActivityLogService::log('template.created', 'templates', "Created print template {$t->name}", $t);
@@ -66,6 +67,7 @@ class TemplateController extends Controller
     public function update(Request $request, PrintTemplate $template): RedirectResponse
     {
         $data = $this->validated($request);
+        $this->assertBackground($request);
         $changedLayout = $data['layout'] != $template->layout
             || (float) $data['paper_width_mm'] !== (float) $template->paper_width_mm || (float) $data['paper_height_mm'] !== (float) $template->paper_height_mm
             || (float) $data['offset_x_mm'] !== (float) $template->offset_x_mm || (float) $data['offset_y_mm'] !== (float) $template->offset_y_mm
@@ -98,6 +100,16 @@ class TemplateController extends Controller
         abort_unless($template->background_path && Storage::disk('local')->exists($template->background_path), 404);
 
         return Storage::disk('local')->response($template->background_path, null, ['Cache-Control' => 'private, max-age=3600']);
+    }
+
+    private function assertBackground(Request $request): void
+    {
+        if ($request->hasFile('background')) {
+            $mime = (new \finfo(FILEINFO_MIME_TYPE))->file($request->file('background')->getRealPath());
+            if (! in_array($mime, ['image/jpeg', 'image/png'], true)) {
+                throw ValidationException::withMessages(['background' => 'Background must be a JPG or PNG image.']);
+            }
+        }
     }
 
     private function saveBackground(Request $request, PrintTemplate $t): void
@@ -133,7 +145,7 @@ class TemplateController extends Controller
             'layout.fields.*.label' => 'nullable|string|max:60', 'layout.fields.*.text' => 'nullable|string|max:200',
             'layout.fields.*.char_x' => 'nullable|array', 'layout.fields.*.char_x.*' => 'numeric',
             'layout.fields.*.uppercase' => 'boolean', 'layout.fields.*.bold' => 'boolean',
-            'background' => 'nullable|file',
+            'background' => 'nullable|file|max:10240',
         ]);
         unset($data['background']);
         $data['offset_x_mm'] ??= 0;

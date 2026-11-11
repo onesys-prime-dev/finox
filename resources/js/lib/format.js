@@ -56,3 +56,9 @@ export function bytes(n) {
 }
 
 export const token = () => (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2));
+
+/** Today's date (YYYY-MM-DD) in the browser's local time zone — toISOString() would give the UTC date. */
+export function today() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}

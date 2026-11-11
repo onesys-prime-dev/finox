@@ -44,7 +44,12 @@ class BackupCommand extends Command
         }
 
         $zip = new ZipArchive;
-        $zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+        if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
+            $this->error('Could not create '.$zipPath);
+            @unlink($sql);
+
+            return self::FAILURE;
+        }
         $zip->addFile($sql, 'database.sql');
         $base = storage_path('app/private');
         if (is_dir($base)) {
@@ -54,12 +59,16 @@ class BackupCommand extends Command
                 }
             }
         }
-        $zip->close();
+        if (! $zip->close() || ! is_file($zipPath)) {
+            $this->error('Writing the backup zip failed; the SQL dump was kept at '.$sql);
+
+            return self::FAILURE;
+        }
         @unlink($sql);
 
         $old = glob("{$dir}/finox-backup-*.zip");
         rsort($old);
-        foreach (array_slice($old, (int) $this->option('keep')) as $f) {
+        foreach (array_slice($old, max(1, (int) $this->option('keep'))) as $f) {
             @unlink($f);
         }
 

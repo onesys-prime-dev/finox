@@ -13,7 +13,12 @@ function hundreds(n) {
 }
 
 export function parseAmount(input) {
-    const v = String(input ?? '').replace(/[,₱\s]|PHP/gi, '');
+    let v = String(input ?? '').replace(/[₱\s]|PHP/gi, '');
+    // Commas are only valid as thousands separators; "1,5" is ambiguous and rejected (same rule as the server).
+    if (v.includes(',')) {
+        if (!/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(v)) return null;
+        v = v.replace(/,/g, '');
+    }
     if (!/^\d{1,13}(\.\d{1,2})?$/.test(v)) return null;
     const [w, f = ''] = v.split('.');
     return { whole: w.replace(/^0+(?=\d)/, ''), cents: f.padEnd(2, '0') };

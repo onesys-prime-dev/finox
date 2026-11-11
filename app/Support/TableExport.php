@@ -50,10 +50,20 @@ class TableExport
             fwrite($o, "\xEF\xBB\xBF");
             fputcsv($o, $headers);
             foreach ($rows as $r) {
-                fputcsv($o, array_values($r));
+                fputcsv($o, array_map([self::class, 'safeCell'], array_values($r)));
             }
             fclose($o);
         }, $name, ['Content-Type' => 'text/csv']);
+    }
+
+    /** Neutralise spreadsheet formulas in user-controlled text (CSV injection). */
+    private static function safeCell(mixed $v): mixed
+    {
+        if (is_string($v) && $v !== '' && ! is_numeric($v) && strpbrk($v[0], "=+-@	") !== false) {
+            return "'".$v;
+        }
+
+        return $v;
     }
 
     public const PDF_MAX_ROWS = 2000;

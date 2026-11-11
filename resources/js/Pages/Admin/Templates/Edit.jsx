@@ -6,7 +6,7 @@ import PrintSheet, { SheetFrame } from '@/Components/PrintSheet';
 import { Banner, Field, PageHeader, Spinner } from '@/Components/ui';
 
 const SAMPLE = {
-    cheque: { payee_line: 'SAMPLE PAYEE NAME CORPORATION', amount_number: '1,234,567.89', amount_words: 'ONE MILLION TWO HUNDRED THIRTY FOUR THOUSAND FIVE HUNDRED SIXTY SEVEN AND 89/100 PESOS ONLY', date: '2026-11-09', check_no: '0000094658', purpose: 'Sample purpose of payment', reference: 'REF-0001', prepared_by: 'Prepared By', printed_on: '2026-11-09', bank_account_name: 'ACCOUNT NAME' },
+    cheque: { payee_line: 'SAMPLE PAYEE NAME CORPORATION', amount_number: '1,234,567.89', amount_words: 'ONE MILLION TWO HUNDRED THIRTY FOUR THOUSAND FIVE HUNDRED SIXTY SEVEN AND 89/100 PESOS ONLY', date: '2026-11-09', check_no: '0000094658', purpose: 'Sample purpose of payment', reference: 'REF-0001', receipt_refs: 'OR-1001 · Sample Vendor Inc.\nOR-1002 · Another Supplier Corp.\nOR-1003 · Sample Vendor Inc.', receipt_amounts: '10,000.00\n25,500.50\n3,000.00', receipt_total: '38,500.50', prepared_by: 'Prepared By', printed_on: '2026-11-09', bank_account_name: 'ACCOUNT NAME' },
     receipt: { org_name: 'Your Organization', org_address: '123 Sample Street, City', receipt_no: 'OR-0001', date: '2026-11-09', vendor: 'Sample Vendor Inc.', description: 'Sample description of goods', amount_number: '1,234.56', tax: '₱148.15', reference: 'REF-1', prepared_by: 'Prepared By', printed_on: '2026-11-09' },
 };
 const MM = 3.7795;

@@ -7,7 +7,7 @@ import Icon from '@/Components/Icon';
 import Modal from '@/Components/Modal';
 import StatusBadge, { statusLabel } from '@/Components/StatusBadge';
 import { Banner, Field, PageHeader } from '@/Components/ui';
-import { bytes, useFmt } from '@/lib/format';
+import { bytes, today, useFmt } from '@/lib/format';
 
 const STEPS = ['draft', 'prepared', 'printed', 'released', 'for_clearing', 'done'];
 
@@ -172,10 +172,11 @@ export default function Show({ cheque: c, can, preparationErrors, staleDays }) {
                     {can.stop && (
                         <div className="card card-pad">
                             <p className="card-title mb-1">Cancel or void</p>
-                            <p className="mb-3 text-xs text-slate-500">Cancel a cheque that was never printed; void one where paper exists. A reason is required and the record is kept.</p>
+                            <p className="mb-3 text-xs text-slate-500">A cheque that was never printed is cancelled; one where paper exists is voided. A reason is required and the record is kept.</p>
                             <div className="flex gap-2">
-                                <button className="btn-secondary btn-sm" onClick={() => setDlg('cancel')}>Cancel</button>
-                                <button className="btn-danger btn-sm" onClick={() => setDlg('void')}>Void</button>
+                                {['draft', 'prepared'].includes(c.status)
+                                    ? <button className="btn-secondary btn-sm" onClick={() => setDlg('cancel')}>Cancel</button>
+                                    : <button className="btn-danger btn-sm" onClick={() => setDlg('void')}>Void</button>}
                             </div>
                         </div>
                     )}
@@ -196,7 +197,7 @@ export default function Show({ cheque: c, can, preparationErrors, staleDays }) {
 }
 
 function ReleaseDialog({ show, onClose, onSubmit, busy, errors, defaultTo }) {
-    const f = useForm({ released_at: new Date().toISOString().slice(0, 10), released_to: defaultTo ?? '', released_by: '', remarks: '', supporting_reference: '' });
+    const f = useForm({ released_at: today(), released_to: defaultTo ?? '', released_by: '', remarks: '', supporting_reference: '' });
     const e = { ...errors };
     return (
         <Modal show={show} onClose={onClose} title="Record cheque release" maxWidth="lg"
@@ -214,7 +215,7 @@ function ReleaseDialog({ show, onClose, onSubmit, busy, errors, defaultTo }) {
 }
 
 function ClearingDialog({ show, onClose, onSubmit, busy, errors }) {
-    const f = useForm({ result: 'cleared', cleared_at: new Date().toISOString().slice(0, 10), remarks: '', file: null });
+    const f = useForm({ result: 'cleared', cleared_at: today(), remarks: '', file: null });
     return (
         <Modal show={show} onClose={onClose} title="Record clearing result" maxWidth="lg"
             footer={<><button className="btn-secondary" onClick={onClose}>Cancel</button><button className={f.data.result === 'bounced' ? 'btn-danger' : 'btn-primary'} disabled={busy} onClick={() => onSubmit(f.data)}>Record as {f.data.result}</button></>}>

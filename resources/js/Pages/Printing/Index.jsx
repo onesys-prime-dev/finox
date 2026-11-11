@@ -38,6 +38,7 @@ export default function Index({ category, ready, awaiting, failed, accounts, ban
     const isReprint = selRows.length > 0 && selRows.some((r) => r.status !== 'prepared' && category === 'cheque');
     const mixed = selRows.some((r) => r.status === 'prepared') && selRows.some((r) => r.status !== 'prepared') && category === 'cheque';
     const blocked = selRows.filter((r) => r.blocked);
+    const mixedTemplates = category === 'cheque' && new Set(selRows.map((r) => r.template_id)).size > 1;
     const toggle = (id) => setSel(sel.includes(id) ? sel.filter((x) => x !== id) : [...sel, id]);
     const selectable = rows.filter((r) => !r.blocked);
     const allOn = selectable.length > 0 && selectable.every((r) => sel.includes(r.id));
@@ -71,7 +72,7 @@ export default function Index({ category, ready, awaiting, failed, accounts, ban
         return () => { clearTimeout(t); window.removeEventListener('afterprint', after); };
     }, [printing]);
 
-    const canGo = sel.length > 0 && !mixed && blocked.length === 0 && (!isReprint || canReprint);
+    const canGo = sel.length > 0 && !mixed && !mixedTemplates && blocked.length === 0 && (!isReprint || canReprint);
     const tpl0 = preview?.pages?.[0]?.template;
 
     return (
@@ -117,6 +118,7 @@ export default function Index({ category, ready, awaiting, failed, accounts, ban
                     </div>
                 </div>
                 {mixed && <div className="p-4 pb-0"><Banner tone="warn">Select either new prints or reprints, not both at once.</Banner></div>}
+                {mixedTemplates && <div className="p-4 pb-0"><Banner tone="warn">These cheques use different print templates (paper layouts). Print one bank account at a time — use the bank account filter above.</Banner></div>}
                 {blocked.length > 0 && <div className="p-4 pb-0"><Banner tone="warn">{blocked.map((b) => `${b.label}: ${b.blocked}`).join('; ')}</Banner></div>}
                 {err.length > 0 && <div className="p-4 pb-0"><Banner tone="bad"><ul className="list-disc pl-4">{err.map((e, i) => <li key={i}>{e}</li>)}</ul></Banner></div>}
                 <div className="overflow-x-auto">

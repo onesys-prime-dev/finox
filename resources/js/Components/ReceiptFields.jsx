@@ -7,7 +7,7 @@ import { usePage } from '@inertiajs/react';
 
 /** Shared receipt fields: duplicate check as you type, cheque linking limited to the vendor's cheques. */
 export default function ReceiptFields({ data, set, errors, categories, payee, setPayee, ignoreId, chequeLabel, autoFocus }) {
-    const { auth } = usePage().props;
+    const { auth, app } = usePage().props;
     const canOverride = auth.user.permissions.includes('receipts.override_duplicate');
     const [dup, setDup] = useState({ exact: null, similar: [] });
     const [cq, setCq] = useState('');
@@ -46,8 +46,8 @@ export default function ReceiptFields({ data, set, errors, categories, payee, se
             </Field>
             <Field label="Description" error={errors.description}><input className="input" value={data.description ?? ''} onChange={(e) => set('description', e.target.value)} /></Field>
             <div className="grid gap-4 sm:grid-cols-3">
-                <Field label="Amount (₱)" required error={errors.amount}><input inputMode="decimal" className="input text-right font-mono" placeholder="0.00" value={data.amount ?? ''} onChange={(e) => set('amount', e.target.value)} /></Field>
-                <Field label="Tax amount (₱)" error={errors.tax_amount}><input inputMode="decimal" className="input text-right font-mono" placeholder="0.00" value={data.tax_amount ?? ''} onChange={(e) => set('tax_amount', e.target.value)} /></Field>
+                <Field label={`Amount (${app.currency})`} required error={errors.amount}><input inputMode="decimal" className="input text-right font-mono" placeholder="0.00" value={data.amount ?? ''} onChange={(e) => set('amount', e.target.value)} /></Field>
+                <Field label={`Tax amount (${app.currency})`} error={errors.tax_amount}><input inputMode="decimal" className="input text-right font-mono" placeholder="0.00" value={data.tax_amount ?? ''} onChange={(e) => set('tax_amount', e.target.value)} /></Field>
                 <Field label="Tax rate (%)" error={errors.tax_rate} hint="Optional"><input inputMode="decimal" className="input text-right font-mono" value={data.tax_rate ?? ''} onChange={(e) => set('tax_rate', e.target.value)} /></Field>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">

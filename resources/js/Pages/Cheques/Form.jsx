@@ -7,17 +7,17 @@ import PayeeSelect from '@/Components/PayeeSelect';
 import PrintSheet, { SheetFrame } from '@/Components/PrintSheet';
 import { Banner, Field, PageHeader, Spinner } from '@/Components/ui';
 import { amountInWords, parseAmount } from '@/lib/amountInWords';
-import { token } from '@/lib/format';
+import { today, token } from '@/lib/format';
 
 export default function Form({ cheque, accounts, locked = false, duplicateOf }) {
-    const { auth } = usePage().props;
+    const { auth, app } = usePage().props;
     const can = (p) => auth.user.permissions.includes(p);
     const editing = !!cheque?.id;
     const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
     const defaultAccount = cheque?.bank_account_id ?? (params.get('bank_account_id') ? Number(params.get('bank_account_id')) : accounts[0]?.id);
 
     const form = useForm({
-        bank_account_id: defaultAccount ?? '', cheque_number: cheque?.cheque_number ?? '', cheque_date: cheque?.cheque_date ?? new Date().toISOString().slice(0, 10),
+        bank_account_id: defaultAccount ?? '', cheque_number: cheque?.cheque_number ?? '', cheque_date: cheque?.cheque_date ?? today(),
         payee_id: cheque?.payee_id ?? '', payee_line: cheque?.payee_line ?? '', is_cash: cheque?.is_cash ?? false, amount: cheque?.amount ?? '',
         purpose: cheque?.purpose ?? '', reference_no: cheque?.reference_no ?? '', remarks: cheque?.remarks ?? '', _next: 'draft', _submit_token: token(),
     });
@@ -43,8 +43,9 @@ export default function Form({ cheque, accounts, locked = false, duplicateOf }) 
     // Live duplicate check.
     useEffect(() => {
         if (locked || !data.cheque_number || !data.bank_account_id) { setDup(null); return; }
-        const t = setTimeout(() => axios.get(route('cheques.check'), { params: { bank_account_id: data.bank_account_id, cheque_number: data.cheque_number, ignore: cheque?.id } }).then((r) => setDup(r.data.duplicate)), 250);
-        return () => clearTimeout(t);
+        let stale = false;
+        const t = setTimeout(() => axios.get(route('cheques.check'), { params: { bank_account_id: data.bank_account_id, cheque_number: data.cheque_number, ignore: cheque?.id } }).then((r) => { if (!stale) setDup(r.data.duplicate); }), 250);
+        return () => { stale = true; clearTimeout(t); };
     }, [data.cheque_number, data.bank_account_id]);
 
     // Warn on leaving with unsaved changes.
@@ -58,7 +59,7 @@ export default function Form({ cheque, accounts, locked = false, duplicateOf }) 
 
     const submit = (next) => {
         if (dup || amountInvalid) return;
-        form.transform((d) => ({ ...d, _next: next, amount: String(d.amount).replace(/,/g, '') }));
+        form.transform((d) => ({ ...d, _next: next }));
         setDirty(false);
         const opts = { preserveScroll: true, onError: () => setDirty(true) };
         editing ? form.put(route('cheques.update', cheque.id), opts) : form.post(route('cheques.store'), opts);
@@ -71,7 +72,7 @@ export default function Form({ cheque, accounts, locked = false, duplicateOf }) 
         return () => window.removeEventListener('keydown', h);
     });
     const onEnter = (e) => {
-        if (e.key !== 'Enter' || e.target.tagName === 'TEXTAREA' || e.target.getAttribute('role') === 'combobox') return;
+        if (e.key !== 'Enter' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'BUTTON' || e.target.getAttribute('role') === 'combobox') return;
         e.preventDefault();
         const els = [...formRef.current.querySelectorAll('input:not([type=hidden]):not([disabled]), select:not([disabled]), textarea:not([disabled])')];
         const i = els.indexOf(e.target);
@@ -111,7 +112,7 @@ export default function Form({ cheque, accounts, locked = false, duplicateOf }) 
                         <Field label="Cheque date" required error={errors.cheque_date}>
                             <input type="date" className="input" value={data.cheque_date} disabled={locked} onChange={(e) => set('cheque_date', e.target.value)} />
                         </Field>
-                        <Field label="Amount (₱)" required error={errors.amount ?? (amountInvalid ? 'Enter digits only, up to 2 decimals.' : null)}>
+                        <Field label={`Amount (${app.currency})`} required error={errors.amount ?? (amountInvalid ? 'Enter digits only, up to 2 decimals.' : null)}>
                             <input inputMode="decimal" className={`input text-right font-mono text-base ${amountInvalid || errors.amount ? 'input-error' : ''}`} placeholder="0.00" value={data.amount} disabled={locked} onChange={(e) => set('amount', e.target.value)} />
                         </Field>
                     </div>

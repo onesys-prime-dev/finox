@@ -211,11 +211,22 @@ class ChequeController extends Controller
             'remarks' => 'nullable|string|max:2000',
             'file' => 'nullable|file',
         ]);
-        if ($request->hasFile('file')) {
-            $doc = $docs->store($request->file('file'), 'clearing_proof', $cheque, $request->user());
-            $data['document_id'] = $doc->id;
-        }
-        $this->service->recordClearing($cheque, $data, $request->user());
+        \Illuminate\Support\Facades\DB::transaction(function () use ($request, $docs, $cheque, &$data) {
+            $stored = null;
+            try {
+                if ($request->hasFile('file')) {
+                    $stored = $docs->store($request->file('file'), 'clearing_proof', $cheque, $request->user());
+                    $data['document_id'] = $stored->id;
+                }
+                $this->service->recordClearing($cheque, $data, $request->user());
+            } catch (\Throwable $e) {
+                // Don't leave the uploaded proof behind when the clearing itself is rejected.
+                if ($stored) {
+                    $docs->disk()->delete($stored->path);
+                }
+                throw $e;
+            }
+        });
 
         return back()->with('success', 'Clearing result recorded (manual entry).');
     }
@@ -282,7 +293,7 @@ class ChequeController extends Controller
 
     private function accounts()
     {
-        return BankAccount::with('bank:id,name', 'template')->where('is_active', true)->get()
+        return BankAccount::with('bank:id,name', 'template')->where('is_active', true)->whereHas('bank', fn ($b) => $b->where('is_active', true))->get()
             ->map(fn ($a) => [
                 'id' => $a->id, 'label' => $a->display_name, 'bank' => $a->bank?->name,
                 'has_template' => (bool) $a->template?->is_active, 'template_id' => $a->print_template_id,

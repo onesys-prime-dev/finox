@@ -120,7 +120,7 @@ class RegisterQuery
         $key = $sort === 'type' ? 'type' : $sort;
         $sorted = $rows->sort(function ($a, $b) use ($key, $dir) {
             $x = $a->{$key} ?? ''; $y = $b->{$key} ?? '';
-            $c = $key === 'amount' ? ((float) $x <=> (float) $y) : strcmp((string) $x, (string) $y);
+            $c = $key === 'amount' ? ((float) $x <=> (float) $y) : strcasecmp((string) $x, (string) $y);
             if ($c === 0) {
                 $c = strcmp($a->created_at ?? '', $b->created_at ?? '');
             }

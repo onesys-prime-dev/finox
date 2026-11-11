@@ -18,6 +18,16 @@ use Inertia\Response;
 
 class UserController extends Controller
 {
+    /** Only administrators may touch administrator accounts or hand out the administrator role. */
+    private function guardAdmin(Request $request, ?User $target, ?int $newRoleId = null): void
+    {
+        if ($request->user()->isAdmin()) {
+            return;
+        }
+        $adminRoleId = Role::where('name', 'admin')->value('id');
+        abort_if(($target && $target->isAdmin()) || ($newRoleId !== null && $newRoleId === (int) $adminRoleId), 403, 'Only an administrator can manage administrator accounts.');
+    }
+
     public function index(Request $request): Response
     {
         $users = User::with('role:id,label')->when($request->search, fn ($q, $s) => $q->where(fn ($w) => $w->where('name', 'like', "%{$s}%")->orWhere('email', 'like', "%{$s}%")))
@@ -40,6 +50,7 @@ class UserController extends Controller
             'name' => 'required|string|max:255', 'email' => 'required|email|lowercase|max:255|unique:users',
             'role_id' => 'required|exists:roles,id', 'password' => ['required', PasswordRules::make()],
         ]);
+        $this->guardAdmin($request, null, (int) $data['role_id']);
         $user = DB::transaction(function () use ($data) {
             $u = User::create($data + ['must_change_password' => true, 'is_active' => true]);
             ActivityLogService::log('user.created', 'users', "Created user {$u->name}", $u, new: ['role_id' => $u->role_id, 'email' => $u->email]);
@@ -56,6 +67,7 @@ class UserController extends Controller
             'name' => 'required|string|max:255', 'email' => ['required', 'email', 'lowercase', 'max:255', Rule::unique('users')->ignore($user->id)],
             'role_id' => 'required|exists:roles,id',
         ]);
+        $this->guardAdmin($request, $user, (int) $data['role_id']);
         if ($user->id === $request->user()->id && (int) $data['role_id'] !== $user->role_id) {
             return back()->with('error', 'You cannot change your own role.');
         }
@@ -72,6 +84,7 @@ class UserController extends Controller
 
     public function toggle(Request $request, User $user): RedirectResponse
     {
+        $this->guardAdmin($request, $user);
         if ($user->id === $request->user()->id) {
             return back()->with('error', 'You cannot deactivate your own account.');
         }
@@ -85,6 +98,7 @@ class UserController extends Controller
 
     public function resetPassword(Request $request, User $user): RedirectResponse
     {
+        $this->guardAdmin($request, $user);
         $temp = Str::password(12, symbols: false).'a1A';
         DB::transaction(function () use ($user, $temp) {
             $user->forceFill(['password' => $temp, 'must_change_password' => true, 'failed_login_count' => 0, 'locked_until' => null])->save();
@@ -94,8 +108,9 @@ class UserController extends Controller
         return back()->with('success', "Temporary password for {$user->name}: {$temp}  (shown once — they must change it at next sign-in)");
     }
 
-    public function unlock(User $user): RedirectResponse
+    public function unlock(Request $request, User $user): RedirectResponse
     {
+        $this->guardAdmin($request, $user);
         $user->forceFill(['failed_login_count' => 0, 'locked_until' => null])->save();
         ActivityLogService::log('user.unlocked', 'users', "Unlocked account of {$user->name}", $user);
 

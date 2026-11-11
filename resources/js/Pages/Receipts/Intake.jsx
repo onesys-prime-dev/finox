@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import Icon from '@/Components/Icon';
 import ReceiptFields from '@/Components/ReceiptFields';
 import { Banner, PageHeader, Spinner } from '@/Components/ui';
-import { bytes, token } from '@/lib/format';
+import { bytes, today, token } from '@/lib/format';
 
 const OK = ['application/pdf', 'image/jpeg', 'image/png'];
 
@@ -82,15 +82,15 @@ export default function Intake({ categories, queue, maxMb }) {
 
 function QueueItem({ item, categories, remaining }) {
     const form = useForm({
-        receipt_number: item.receipt_number ?? '', receipt_date: item.receipt_date ?? new Date().toISOString().slice(0, 10), payee_id: item.payee_id ?? '',
-        description: item.description ?? '', amount: item.amount ?? '', tax_amount: item.tax_amount === '0.00' ? '' : item.tax_amount, tax_rate: '',
-        category_id: item.category_id ?? '', cheque_id: item.cheque_id ?? '', reference_no: item.reference_no ?? '', remarks: '', duplicate_override_reason: '',
+        receipt_number: item.receipt_number ?? '', receipt_date: item.receipt_date ?? today(), payee_id: item.payee_id ?? '',
+        description: item.description ?? '', amount: item.amount ?? '', tax_amount: item.tax_amount === '0.00' ? '' : item.tax_amount, tax_rate: item.tax_rate ?? '',
+        category_id: item.category_id ?? '', cheque_id: item.cheque_id ?? '', reference_no: item.reference_no ?? '', remarks: item.remarks ?? '', duplicate_override_reason: '',
         _next: 'record', _queue: true, _method: 'put',
     });
     const [payee, setPayee] = useState(item.payee_id ? { id: item.payee_id, name: item.payee_name } : null);
     const isImg = item.file?.mime?.startsWith('image/');
     const save = (next) => {
-        form.transform((d) => ({ ...d, _next: next, amount: String(d.amount ?? '').replace(/,/g, ''), tax_amount: String(d.tax_amount ?? '').replace(/,/g, '') }));
+        form.transform((d) => ({ ...d, _next: next }));
         form.post(route('receipts.update', item.id), { preserveScroll: true });
     };
     useEffect(() => {

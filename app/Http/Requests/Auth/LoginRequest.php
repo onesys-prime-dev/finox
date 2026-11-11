@@ -8,6 +8,7 @@ use App\Support\Settings;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
 
 class LoginRequest extends FormRequest
@@ -35,16 +36,30 @@ class LoginRequest extends FormRequest
         $email = mb_strtolower($this->string('email'));
         $user = User::where('email', $email)->first();
 
-        if ($user?->locked_until && $user->locked_until->isFuture()) {
-            $this->history($user, $email, 'locked');
+        // Per-IP throttle so one address cannot spray passwords across many accounts.
+        $ipKey = 'login-ip:'.$this->ip();
+        if (RateLimiter::tooManyAttempts($ipKey, 20)) {
             throw ValidationException::withMessages([
-                'email' => 'This account is temporarily locked. Try again in '.now()->diffInMinutes($user->locked_until, true).' minute(s).',
+                'email' => 'Too many sign-in attempts. Try again in '.ceil(RateLimiter::availableIn($ipKey) / 60).' minute(s).',
             ]);
         }
 
         $valid = $user && Hash::check($this->string('password'), $user->password);
 
+        if ($user?->locked_until && $user->locked_until->isFuture()) {
+            $this->history($user, $email, 'locked');
+            RateLimiter::hit($ipKey, 60);
+            // Only someone who knows the password is told the account is locked (no account enumeration).
+            if (! $valid) {
+                throw ValidationException::withMessages(['email' => trans('auth.failed')]);
+            }
+            throw ValidationException::withMessages([
+                'email' => 'This account is temporarily locked. Try again in '.max(1, (int) ceil(now()->diffInSeconds($user->locked_until, true) / 60)).' minute(s).',
+            ]);
+        }
+
         if (! $valid) {
+            RateLimiter::hit($ipKey, 60);
             if ($user) {
                 $count = $user->failed_login_count + 1;
                 $max = (int) Settings::get('lockout_attempts', 5);
@@ -62,6 +77,7 @@ class LoginRequest extends FormRequest
             throw ValidationException::withMessages(['email' => 'This account has been deactivated. Contact an administrator.']);
         }
 
+        RateLimiter::clear($ipKey);
         Auth::login($user, $this->boolean('remember'));
         $user->forceFill(['failed_login_count' => 0, 'locked_until' => null, 'last_login_at' => now()])->save();
         $this->history($user, $email, 'success');

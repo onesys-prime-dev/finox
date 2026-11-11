@@ -56,7 +56,7 @@ class ReceiptController extends Controller
         return Inertia::render('Receipts/Intake', [
             'categories' => ReceiptCategory::where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'queue' => Receipt::where('created_by', $request->user()->id)->where('status', 'draft')
-                ->with('documents', 'payee:id,name')->latest('id')->limit(100)->get()->map(fn ($r) => $this->intakeRow($r))->values(),
+                ->with('documents', 'payee:id,name')->orderBy('id')->limit(100)->get()->map(fn ($r) => $this->intakeRow($r))->values(),
             'maxMb' => (int) \App\Support\Settings::get('max_upload_mb', 10),
         ]);
     }
@@ -67,6 +67,10 @@ class ReceiptController extends Controller
         $this->authorize('create', Receipt::class);
         $request->validate(['files' => 'required|array|min:1|max:20', 'files.*' => 'file']);
         $n = 0;
+        // Validate every file first so a bad one cannot leave empty drafts or half an upload behind.
+        foreach ($request->file('files') as $file) {
+            $this->docs->validate($file);
+        }
         foreach ($request->file('files') as $file) {
             $r = $this->service->create([], $request->user());
             $this->docs->store($file, 'receipt', $r, $request->user());
@@ -92,6 +96,10 @@ class ReceiptController extends Controller
     public function update(Request $request, Receipt $receipt): RedirectResponse
     {
         $this->authorize('update', $receipt);
+        // Only an actual draft may be saved with required fields blank.
+        if ($receipt->status !== ReceiptStatus::Draft) {
+            $request->merge(['_next' => 'record']);
+        }
         $data = $this->validated($request);
         $draft = $request->input('_next') === 'draft';
         $this->service->update($receipt, $data, $request->user(), record: ! $draft);
@@ -217,7 +225,7 @@ class ReceiptController extends Controller
             ->when($request->q, fn ($q, $s) => $q->where('cheque_number', 'like', "%{$s}%"))
             ->latest('id')->limit(15)->get();
 
-        return response()->json($rows->map(fn ($c) => ['id' => $c->id, 'label' => "{$c->cheque_number} · {$c->payee?->name} · ₱".number_format((float) $c->amount, 2)]));
+        return response()->json($rows->map(fn ($c) => ['id' => $c->id, 'label' => "{$c->cheque_number} · {$c->payee?->name} · ".\App\Support\Money::format($c->amount)]));
     }
 
     private function cancel(Request $request, Receipt $receipt): void
@@ -272,6 +280,7 @@ class ReceiptController extends Controller
             'payee_id' => $r->payee_id, 'payee_name' => $r->payee?->name, 'description' => $r->description,
             'amount' => $r->amount ? (string) $r->amount : '', 'tax_amount' => (string) $r->tax_amount, 'category_id' => $r->category_id,
             'reference_no' => $r->reference_no, 'cheque_id' => $r->cheque_id,
+            'tax_rate' => $r->tax_rate !== null ? (string) $r->tax_rate : '', 'remarks' => $r->remarks ?? '',
             'file' => $d ? $this->doc($d) : null,
         ];
     }

@@ -44,6 +44,8 @@ class HandleInertiaRequests extends Middleware
                 'success' => fn () => $request->session()->get('success'),
                 'error' => fn () => $request->session()->get('error'),
                 'warning' => fn () => $request->session()->get('warning'),
+                // Changes on every response that carries a message, so the same text twice in a row still toasts.
+                'id' => fn () => ($request->session()->has('success') || $request->session()->has('error') || $request->session()->has('warning')) ? uniqid() : null,
             ],
             // Unconfirmed print jobs follow the user around until resolved.
             'pendingPrints' => fn () => $user && $user->hasPermission('print.print')

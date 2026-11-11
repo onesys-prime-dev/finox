@@ -90,6 +90,9 @@ export function useFilters(routeName, initial, { only } = {}) {
         immediate ? go() : (timer.current = setTimeout(go, 300));
     };
     useEffect(() => { first.current = false; }, []);
+    // Re-sync when the server hands back different filters (saved filter applied, back/forward, etc.).
+    const key = JSON.stringify(initial);
+    useEffect(() => { if (!first.current) setF(initial); }, [key]);
     return [f, apply];
 }
 
