@@ -56,6 +56,17 @@ class Cheque extends Model
         return $this->hasOne(ChequeClearing::class);
     }
 
+    public function lines(): HasMany
+    {
+        return $this->hasMany(ChequeLine::class)->orderBy('line_no');
+    }
+
+    /** Sum of the breakdown rows, as a 2-decimal string. */
+    public function linesTotal(): string
+    {
+        return \App\Support\Money::sum($this->lines->pluck('amount'));
+    }
+
     public function receipts(): HasMany
     {
         return $this->hasMany(Receipt::class);

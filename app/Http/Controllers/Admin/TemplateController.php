@@ -18,7 +18,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class TemplateController extends Controller
 {
     private const SOURCES = [
-        'cheque' => ['payee_line', 'amount_number', 'amount_words', 'date', 'check_no', 'purpose', 'reference', 'prepared_by', 'printed_on', 'bank_account_name', 'receipt_refs', 'receipt_amounts', 'receipt_total', 'free_text'],
+        'cheque' => ['payee_line', 'amount_number', 'amount_words', 'date', 'check_no', 'purpose', 'reference', 'prepared_by', 'printed_on', 'bank_account_name', 'free_text'],
         'receipt' => ['org_name', 'org_address', 'receipt_no', 'date', 'vendor', 'description', 'amount_number', 'tax', 'reference', 'prepared_by', 'printed_on', 'free_text'],
     ];
 

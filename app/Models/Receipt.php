@@ -43,6 +43,11 @@ class Receipt extends Model
         return $this->belongsTo(Cheque::class);
     }
 
+    public function chequeLines(): HasMany
+    {
+        return $this->hasMany(ChequeLine::class);
+    }
+
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');

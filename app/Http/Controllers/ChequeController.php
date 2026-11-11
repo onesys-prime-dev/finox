@@ -58,7 +58,7 @@ class ChequeController extends Controller
         $this->authorize('create', Cheque::class);
         $prefill = [];
         if ($request->duplicate) {
-            $src = Cheque::findOrFail($request->duplicate);
+            $src = Cheque::with('lines')->findOrFail($request->duplicate);
             $this->authorize('view', $src);
             $prefill = $this->service->duplicateAttributes($src);
         }
@@ -93,7 +93,7 @@ class ChequeController extends Controller
     {
         $this->authorize('view', $cheque);
         $cheque->load('payee', 'bankAccount.bank', 'bankAccount.template', 'creator:id,name', 'release.recorder:id,name',
-            'clearing.recorder:id,name', 'documents', 'receipts:id,cheque_id,receipt_number,status', 'histories.user:id,name');
+            'clearing.recorder:id,name', 'lines', 'documents', 'receipts:id,cheque_id,receipt_number,status', 'histories.user:id,name');
         $user = request()->user();
 
         return Inertia::render('Cheques/Show', [
@@ -118,7 +118,7 @@ class ChequeController extends Controller
     public function edit(Cheque $cheque): Response
     {
         $this->authorize('update', $cheque);
-        $cheque->load('payee');
+        $cheque->load('payee', 'lines');
 
         return Inertia::render('Cheques/Form', [
             'cheque' => [
@@ -127,6 +127,7 @@ class ChequeController extends Controller
                 'payee_name' => $cheque->payee?->name, 'payee_line' => $cheque->payee_line, 'is_cash' => $cheque->is_cash,
                 'amount' => (string) $cheque->amount, 'purpose' => $cheque->purpose, 'reference_no' => $cheque->reference_no,
                 'remarks' => $cheque->remarks, 'status' => $cheque->status->value,
+                'lines' => $this->linesPayload($cheque),
             ],
             'locked' => $cheque->isLocked(),
             'accounts' => $this->accounts(),
@@ -288,7 +289,44 @@ class ChequeController extends Controller
             'purpose' => 'nullable|string|max:500',
             'reference_no' => 'nullable|string|max:100',
             'remarks' => 'nullable|string|max:2000',
+            'lines' => 'nullable|array|max:200',
+            'lines.*.line_date' => 'nullable|date',
+            'lines.*.reference_no' => 'nullable|string|max:60',
+            'lines.*.vendor' => 'nullable|string|max:255',
+            'lines.*.particulars' => 'nullable|string|max:255',
+            'lines.*.amount' => 'nullable',
+            'lines.*.receipt_id' => 'nullable|integer|exists:receipts,id',
         ]);
+    }
+
+    /** Receipts that can still be added to a cheque's breakdown (not already on another active cheque). */
+    public function availableReceipts(Request $request): JsonResponse
+    {
+        $this->authorize('create', Cheque::class);
+        $ignore = (int) $request->ignore;
+        $rows = \App\Models\Receipt::visibleTo($request->user())->with('payee:id,name')
+            ->whereIn('status', ['recorded', 'verified', 'processed'])
+            ->whereDoesntHave('chequeLines', fn ($l) => $l->where('cheque_id', '!=', $ignore)
+                ->whereHas('cheque', fn ($c) => $c->whereNotIn('status', ['cancelled', 'voided'])))
+            ->when($request->payee_id, fn ($q, $v) => $q->where('payee_id', $v))
+            ->when($request->q, fn ($q, $s) => $q->where(fn ($w) => $w->where('receipt_number', 'like', "%{$s}%")
+                ->orWhere('description', 'like', "%{$s}%")->orWhereHas('payee', fn ($p) => $p->where('name', 'like', "%{$s}%"))))
+            ->latest('receipt_date')->latest('id')->limit(50)->get();
+
+        return response()->json($rows->map(fn ($r) => [
+            'id' => $r->id, 'receipt_number' => $r->receipt_number, 'receipt_date' => $r->receipt_date?->toDateString(),
+            'vendor' => $r->payee?->name, 'description' => $r->description, 'amount' => (string) $r->amount, 'status' => $r->status->value,
+        ])->values());
+    }
+
+    /** Breakdown rows as the form and pages use them. */
+    private function linesPayload(Cheque $c): array
+    {
+        return $c->lines->map(fn ($l) => [
+            'id' => $l->id, 'line_date' => $l->line_date?->toDateString(), 'reference_no' => $l->reference_no, 'vendor' => $l->vendor,
+            'particulars' => $l->particulars, 'amount' => (string) $l->amount, 'receipt_id' => $l->receipt_id,
+            'receipt_url' => $l->receipt_id ? route('receipts.show', $l->receipt_id) : null,
+        ])->values()->all();
     }
 
     private function accounts()
@@ -317,6 +355,8 @@ class ChequeController extends Controller
             'bank_account' => $c->bankAccount?->display_name, 'bank_account_id' => $c->bank_account_id,
             'payee_line' => $c->payee_line, 'printed_payee' => $c->printed_payee, 'amount_words' => $c->amount_words,
             'remarks' => $c->remarks, 'stop_payment_note' => $c->stop_payment_note,
+            'lines' => $this->linesPayload($c), 'lines_total' => $c->linesTotal(),
+            'lines_mismatch' => $c->lines->isNotEmpty() && $c->linesTotal() !== \App\Support\Money::parse((string) $c->amount),
             'created_by' => $c->creator?->name, 'created_at' => $c->created_at->toDateTimeString(),
             'printed_at' => $c->printed_at?->toDateTimeString(), 'has_template' => (bool) $c->bankAccount?->template?->is_active,
             'release' => $c->release ? [

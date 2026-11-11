@@ -166,11 +166,6 @@ class PrintingController extends Controller
                 'payee_line' => 'SAMPLE PAYEE NAME CORPORATION', 'amount_number' => '1,234,567.89',
                 'amount_words' => 'ONE MILLION TWO HUNDRED THIRTY FOUR THOUSAND FIVE HUNDRED SIXTY SEVEN AND 89/100 PESOS ONLY',
                 'date' => now()->toDateString(), 'check_no' => '0000000000', 'purpose' => 'SAMPLE PURPOSE', 'reference' => 'REF-0001',
-                'receipt_refs' => "OR-1001 · Sample Vendor Inc.
-OR-1002 · Another Supplier Corp.
-OR-1003 · Sample Vendor Inc.", 'receipt_amounts' => "10,000.00
-25,500.50
-3,000.00", 'receipt_total' => '38,500.50',
                 'prepared_by' => $request->user()->name,
             ] : [
                 'org_name' => \App\Support\Settings::get('org_name'), 'org_address' => \App\Support\Settings::get('org_address'),

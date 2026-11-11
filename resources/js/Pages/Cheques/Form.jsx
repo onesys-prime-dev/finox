@@ -3,6 +3,7 @@ import { Head, router, useForm, usePage } from '@inertiajs/react';
 import axios from 'axios';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Icon from '@/Components/Icon';
+import ChequeBreakdown from '@/Components/ChequeBreakdown';
 import PayeeSelect from '@/Components/PayeeSelect';
 import PrintSheet, { SheetFrame } from '@/Components/PrintSheet';
 import { Banner, Field, PageHeader, Spinner } from '@/Components/ui';
@@ -20,6 +21,7 @@ export default function Form({ cheque, accounts, locked = false, duplicateOf }) 
         bank_account_id: defaultAccount ?? '', cheque_number: cheque?.cheque_number ?? '', cheque_date: cheque?.cheque_date ?? today(),
         payee_id: cheque?.payee_id ?? '', payee_line: cheque?.payee_line ?? '', is_cash: cheque?.is_cash ?? false, amount: cheque?.amount ?? '',
         purpose: cheque?.purpose ?? '', reference_no: cheque?.reference_no ?? '', remarks: cheque?.remarks ?? '', _next: 'draft', _submit_token: token(),
+        lines: (cheque?.lines ?? []).map((l) => ({ line_date: l.line_date ?? '', reference_no: l.reference_no ?? '', vendor: l.vendor ?? '', particulars: l.particulars ?? '', amount: l.amount ?? '', receipt_id: l.receipt_id ?? null, receipt_url: l.receipt_url ?? null })),
     });
     const { data, setData, errors } = form;
     const [payee, setPayee] = useState(cheque?.payee_id ? { id: cheque.payee_id, name: cheque.payee_name } : null);
@@ -141,6 +143,9 @@ export default function Form({ cheque, accounts, locked = false, duplicateOf }) 
                             </div>
                         )}
                     </div>
+
+                    <ChequeBreakdown lines={data.lines} setLines={(v) => set('lines', v)} amount={data.amount} payeeId={data.payee_id} payeeName={payee?.name}
+                        chequeId={cheque?.id} locked={locked} errors={errors} currency={app.currency} onUseTotal={(t) => set('amount', t)} />
 
                     <div className="grid gap-4 sm:grid-cols-2">
                         <Field label="Purpose" error={errors.purpose}><input className="input" value={data.purpose} onChange={(e) => set('purpose', e.target.value)} /></Field>

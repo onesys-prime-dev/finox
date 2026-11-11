@@ -5,6 +5,8 @@ namespace App\Services;
 use App\Enums\ChequeStatus;
 use App\Models\BankAccount;
 use App\Models\Cheque;
+use App\Models\ChequeLine;
+use App\Models\Receipt;
 use App\Models\User;
 use App\Support\AmountInWords;
 use App\Support\Money;
@@ -25,6 +27,7 @@ class ChequeService
     public function create(array $data, User $user): Cheque
     {
         return DB::transaction(function () use ($data, $user) {
+            $lines = $data['lines'] ?? null;
             $data = $this->normalise($data);
             $this->assertNoDuplicate($data['bank_account_id'], $data['cheque_number']);
 
@@ -33,6 +36,9 @@ class ChequeService
                 'created_by' => $user->id,
                 'updated_by' => $user->id,
             ]);
+            if (is_array($lines)) {
+                $this->syncLines($cheque, $lines, $user);
+            }
             ActivityLogService::status($cheque, null, 'draft', null, $user);
             ActivityLogService::log('cheque.created', 'cheques', "Created cheque draft {$cheque->cheque_number}", $cheque, user: $user);
 
@@ -44,6 +50,7 @@ class ChequeService
     {
         return DB::transaction(function () use ($cheque, $data, $user) {
             $cheque = Cheque::lockForUpdate()->findOrFail($cheque->id);
+            $lines = $data['lines'] ?? null;
 
             if ($cheque->isLocked()) {
                 // After Prepared only descriptive fields may change; number/payee/amount/date are frozen.
@@ -58,6 +65,10 @@ class ChequeService
 
             $cheque->fill($data + ['updated_by' => $user->id])->save();
             [$old, $new] = ActivityLogService::diff($cheque);
+            // Breakdown rows follow the same lock as the amount: editable only while Draft.
+            if (! $cheque->isLocked() && is_array($lines)) {
+                $this->syncLines($cheque, $lines, $user);
+            }
             if ($new) {
                 ActivityLogService::log('cheque.updated', 'cheques', "Updated cheque {$cheque->cheque_number}", $cheque, $old, $new, user: $user);
             }
@@ -106,9 +117,19 @@ class ChequeService
                 throw ValidationException::withMessages($errors);
             }
 
-            return $this->move($cheque, ChequeStatus::Prepared, $user, null, [
+            $moved = $this->move($cheque, ChequeStatus::Prepared, $user, null, [
                 'prepared_at' => now(),
             ], 'cheque.prepared', "Prepared cheque {$cheque->cheque_number}");
+
+            // Warn-only rule: a breakdown that does not add up is allowed, but leaves a trace.
+            $cheque->load('lines');
+            if ($cheque->lines->isNotEmpty() && $cheque->linesTotal() !== Money::parse((string) $cheque->amount)) {
+                ActivityLogService::log('cheque.breakdown_mismatch', 'cheques',
+                    "Cheque {$cheque->cheque_number} prepared with a breakdown total of {$cheque->linesTotal()} against amount {$cheque->amount}",
+                    $cheque, user: $user);
+            }
+
+            return $moved;
         });
     }
 
@@ -215,8 +236,12 @@ class ChequeService
             }
             $to = $kind === 'void' ? ChequeStatus::Voided : ChequeStatus::Cancelled;
 
-            return $this->move($cheque, $to, $user, $reason, ['stop_payment_note' => $stopNote ?: null],
+            $moved = $this->move($cheque, $to, $user, $reason, ['stop_payment_note' => $stopNote ?: null],
                 "cheque.{$to->value}", ucfirst($to->value)." cheque {$cheque->cheque_number}");
+            // Receipts on a cancelled/voided cheque are free to be paid by another cheque.
+            Receipt::where('cheque_id', $cheque->id)->update(['cheque_id' => null]);
+
+            return $moved;
         });
     }
 
@@ -243,7 +268,88 @@ class ChequeService
             'purpose' => $c->purpose,
             'reference_no' => $c->reference_no,
             'remarks' => $c->remarks,
+            // Typed rows are copied; receipt links are not (those receipts are already paid).
+            'lines' => $c->lines->map(fn ($l) => [
+                'line_date' => $l->line_date?->toDateString(), 'reference_no' => $l->reference_no, 'vendor' => $l->vendor,
+                'particulars' => $l->particulars, 'amount' => (string) $l->amount, 'receipt_id' => null,
+            ])->values()->all(),
         ];
+    }
+
+    /**
+     * Replace the breakdown rows of a Draft cheque. Rows with a receipt link that receipt to the cheque.
+     * A receipt may be on only one active (not cancelled/voided) cheque.
+     *
+     * @param  list<array<string, mixed>>  $rows
+     */
+    public function syncLines(Cheque $cheque, array $rows, User $user): void
+    {
+        $clean = [];
+        foreach (array_values($rows) as $i => $r) {
+            $blank = trim((string) ($r['amount'] ?? '')) === '' && trim((string) ($r['reference_no'] ?? '')) === ''
+                && trim((string) ($r['particulars'] ?? '')) === '' && trim((string) ($r['vendor'] ?? '')) === '' && empty($r['receipt_id']);
+            if ($blank) {
+                continue;
+            }
+            $amount = Money::parse($r['amount'] ?? null);
+            if ($amount === null || (float) $amount <= 0) {
+                throw ValidationException::withMessages(["lines.{$i}.amount" => 'Enter an amount greater than zero for this row.']);
+            }
+            $clean[] = [
+                'line_date' => ($r['line_date'] ?? null) ?: null,
+                'reference_no' => $this->nullIfBlank($r['reference_no'] ?? null),
+                'vendor' => $this->nullIfBlank($r['vendor'] ?? null),
+                'particulars' => $this->nullIfBlank($r['particulars'] ?? null),
+                'amount' => $amount,
+                'receipt_id' => ! empty($r['receipt_id']) ? (int) $r['receipt_id'] : null,
+            ];
+        }
+
+        $receiptIds = array_values(array_filter(array_column($clean, 'receipt_id')));
+        if (count($receiptIds) !== count(array_unique($receiptIds))) {
+            throw ValidationException::withMessages(['lines' => 'The same receipt is listed twice.']);
+        }
+        if ($receiptIds) {
+            $taken = ChequeLine::whereIn('receipt_id', $receiptIds)->where('cheque_id', '!=', $cheque->id)
+                ->whereHas('cheque', fn ($q) => $q->whereNotIn('status', ['cancelled', 'voided']))
+                ->with('cheque:id,cheque_number', 'receipt:id,receipt_number')->first();
+            if ($taken) {
+                throw ValidationException::withMessages(['lines' => 'Receipt '.($taken->receipt?->receipt_number ?: '#'.$taken->receipt_id)." is already on cheque {$taken->cheque->cheque_number}."]);
+            }
+        }
+
+        $before = $cheque->lines()->get();
+        $oldTotal = Money::sum($before->pluck('amount'));
+        $oldReceipts = $before->pluck('receipt_id')->filter()->all();
+
+        $cheque->lines()->delete();
+        foreach ($clean as $n => $row) {
+            $cheque->lines()->create($row + ['line_no' => $n + 1]);
+        }
+        $cheque->unsetRelation('lines');
+
+        // Keep receipts.cheque_id in step with the rows.
+        $removed = array_diff($oldReceipts, $receiptIds);
+        if ($removed) {
+            Receipt::whereIn('id', $removed)->where('cheque_id', $cheque->id)->update(['cheque_id' => null]);
+        }
+        if ($receiptIds) {
+            Receipt::whereIn('id', $receiptIds)->update(['cheque_id' => $cheque->id]);
+        }
+
+        $newTotal = Money::sum(array_column($clean, 'amount'));
+        if (count($before) !== count($clean) || $oldTotal !== $newTotal
+            || $before->pluck('reference_no')->all() !== array_column($clean, 'reference_no')) {
+            ActivityLogService::log('cheque.breakdown_updated', 'cheques', "Updated breakdown of cheque {$cheque->cheque_number} (".count($clean).' row(s))',
+                $cheque, ['rows' => count($before), 'total' => $oldTotal], ['rows' => count($clean), 'total' => $newTotal], user: $user);
+        }
+    }
+
+    private function nullIfBlank(mixed $v): ?string
+    {
+        $v = trim((string) $v);
+
+        return $v === '' ? null : $v;
     }
 
     // ---- internals -------------------------------------------------------------------

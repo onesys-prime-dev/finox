@@ -111,6 +111,28 @@ export default function Show({ cheque: c, can, preparationErrors, staleDays }) {
                         </div>
                     </div>
 
+                    {c.lines.length > 0 && (
+                        <div className="card">
+                            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
+                                <p className="card-title">Breakdown</p>
+                                <span className="text-xs text-slate-500">Printed on the Payment Advice</span>
+                            </div>
+                            <div className="overflow-x-auto">
+                                <table className="tbl">
+                                    <thead><tr><th>Date</th><th>OR / invoice</th><th>Vendor</th><th>Particulars</th><th className="text-right">Amount</th></tr></thead>
+                                    <tbody>{c.lines.map((l) => (
+                                        <tr key={l.id}>
+                                            <td className="whitespace-nowrap text-slate-600">{fmt.date(l.line_date)}</td>
+                                            <td className="font-mono text-[13px]">{l.receipt_url ? <Link className="text-brand-700 hover:underline" href={l.receipt_url}>{l.reference_no ?? 'Receipt'}</Link> : (l.reference_no ?? '—')}</td>
+                                            <td>{l.vendor ?? '—'}</td><td className="text-slate-600">{l.particulars ?? '—'}</td><td className="num font-medium">{fmt.money(l.amount)}</td>
+                                        </tr>))}</tbody>
+                                    <tfoot><tr><td colSpan={4} className="text-right text-xs font-semibold uppercase tracking-wide text-slate-500">Total</td><td className="num font-semibold">{fmt.money(c.lines_total)}</td></tr></tfoot>
+                                </table>
+                            </div>
+                            {c.lines_mismatch && <div className="p-4 pt-0"><Banner tone="warn">The breakdown total ({fmt.money(c.lines_total)}) does not equal the cheque amount ({fmt.money(c.amount)}). It was allowed, but check before release.</Banner></div>}
+                        </div>
+                    )}
+
                     {c.release && (
                         <div className="card">
                             <div className="border-b border-slate-100 px-5 py-3"><p className="card-title">Release</p></div>

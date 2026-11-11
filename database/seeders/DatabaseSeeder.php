@@ -81,9 +81,6 @@ class DatabaseSeeder extends Seeder
                 $f('adv_purpose', 'purpose', 20, 120, 160, ['region' => 'advice', 'font_size' => 10, 'label' => 'Purpose', 'max_lines' => 3, 'uppercase' => false]),
                 $f('adv_ref', 'reference', 20, 138, 100, ['region' => 'advice', 'font_size' => 10, 'label' => 'Reference']),
                 $f('adv_by', 'prepared_by', 20, 148, 100, ['region' => 'advice', 'font_size' => 10, 'label' => 'Prepared by', 'uppercase' => false]),
-                $f('adv_rcp_refs', 'receipt_refs', 20, 168, 120, ['region' => 'advice', 'font_size' => 9, 'max_lines' => 8, 'uppercase' => false]),
-                $f('adv_rcp_amts', 'receipt_amounts', 142, 168, 38, ['region' => 'advice', 'font_size' => 9, 'max_lines' => 8, 'align' => 'right', 'uppercase' => false]),
-                $f('adv_rcp_total', 'receipt_total', 142, 197, 38, ['region' => 'advice', 'font_size' => 9, 'align' => 'right', 'uppercase' => false, 'label' => 'Total', 'bold' => true]),
                 $f('adv_date', 'date', 20, 158, 60, ['region' => 'advice', 'font_size' => 10, 'label' => 'Date', 'format' => 'date_long']),
             ]],
         ]);
