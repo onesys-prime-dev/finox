@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\ReceiptStatus;
+use App\Models\ChequeLine;
 use App\Models\Receipt;
 use App\Models\User;
 use App\Support\Money;
@@ -36,6 +37,9 @@ class ReceiptService
                 throw ValidationException::withMessages(['status' => "A {$receipt->status->label()} receipt can no longer be edited."]);
             }
             $data = $this->normalise($data);
+            if (array_key_exists('cheque_id', $data)) {
+                $this->guardChequeLink($receipt, $data['cheque_id']);
+            }
             $receipt->fill($data + ['updated_by' => $user->id])->save();
             [$old, $new] = ActivityLogService::diff($receipt);
             if ($new) {
@@ -160,6 +164,21 @@ class ReceiptService
         ActivityLogService::log($action, 'receipts', $desc, $r, ['status' => $from->value], ['status' => $to->value], $reason, $user);
 
         return $r;
+    }
+
+    /**
+     * One receipt, one active cheque. If the receipt is on an active cheque's breakdown, that breakdown owns the link;
+     * otherwise it may only be linked to a cheque that has not already got it on another active breakdown.
+     */
+    private function guardChequeLink(Receipt $r, mixed $chequeId): void
+    {
+        $chequeId = $chequeId ? (int) $chequeId : null;
+        $line = ChequeLine::where('receipt_id', $r->id)
+            ->whereHas('cheque', fn ($q) => $q->whereNotIn('status', ['cancelled', 'voided']))
+            ->with('cheque:id,cheque_number')->first();
+        if ($line && $chequeId !== (int) $line->cheque_id) {
+            throw ValidationException::withMessages(['cheque_id' => "This receipt is on the breakdown of cheque {$line->cheque->cheque_number}. Remove it from that breakdown first."]);
+        }
     }
 
     private function normalise(array $d): array

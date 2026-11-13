@@ -79,7 +79,9 @@ test('admin: settings page saves', async ({ page }) => {
     const issues = watch(page);
     await login(page, 'admin');
     await page.goto('/admin/settings');
-    await page.getByLabel('Keep records live for (years)').fill('12');
+    // Save is enabled only when something changed, so always enter a value different from the current one.
+    const years = page.getByLabel('Keep records live for (years)');
+    await years.fill((await years.inputValue()) === '12' ? '11' : '12');
     await page.getByRole('button', { name: /Save settings/ }).click();
     await expect(page.getByText(/Settings saved/i)).toBeVisible();
     expect(issues, issues.join('\n')).toEqual([]);

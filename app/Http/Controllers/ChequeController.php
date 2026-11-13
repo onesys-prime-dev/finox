@@ -316,11 +316,17 @@ class ChequeController extends Controller
             'reference_no' => 'nullable|string|max:100',
             'remarks' => 'nullable|string|max:2000',
             'lines' => 'nullable|array|max:200',
+            'lines.*' => 'array',
             'lines.*.line_date' => 'nullable|date',
             'lines.*.reference_no' => 'nullable|string|max:60',
             'lines.*.vendor' => 'nullable|string|max:255',
             'lines.*.particulars' => 'nullable|string|max:255',
-            'lines.*.amount' => 'nullable',
+            // A typed amount is a string or a number; anything else (e.g. an array) is a validation error, not a crash.
+            'lines.*.amount' => ['nullable', function (string $attr, mixed $v, \Closure $fail) {
+                if (! is_string($v) && ! is_int($v) && ! is_float($v)) {
+                    $fail('Enter a valid amount for this row.');
+                }
+            }],
             'lines.*.receipt_id' => 'nullable|integer|exists:receipts,id',
         ]);
     }
@@ -334,6 +340,9 @@ class ChequeController extends Controller
             ->whereIn('status', ['recorded', 'verified', 'processed'])
             ->whereDoesntHave('chequeLines', fn ($l) => $l->where('cheque_id', '!=', $ignore)
                 ->whereHas('cheque', fn ($c) => $c->whereNotIn('status', ['cancelled', 'voided'])))
+            // Also hide receipts linked to another active cheque from the receipt form.
+            ->where(fn ($w) => $w->whereNull('cheque_id')->orWhere('cheque_id', $ignore)
+                ->orWhereHas('cheque', fn ($c) => $c->whereIn('status', ['cancelled', 'voided'])))
             ->when($request->payee_id, fn ($q, $v) => $q->where('payee_id', $v))
             ->when($request->q, fn ($q, $s) => $q->where(fn ($w) => $w->where('receipt_number', 'like', "%{$s}%")
                 ->orWhere('description', 'like', "%{$s}%")->orWhereHas('payee', fn ($p) => $p->where('name', 'like', "%{$s}%"))))

@@ -20,8 +20,9 @@ export default function Schedule({ cheque: c, org, by }) {
         return () => { clearTimeout(t); window.removeEventListener('afterprint', after); };
     }, [printing]);
 
-    const body = (
-        <div style={{ fontFamily: 'Arial, Helvetica, sans-serif', color: '#000', fontSize: '10pt', padding: '14mm 14mm' }}>
+    // On screen the sheet gets its margin as padding; on paper @page gives every page (not just page 1) a 14 mm margin.
+    const sheet = (pad) => (
+        <div style={{ fontFamily: 'Arial, Helvetica, sans-serif', color: '#000', fontSize: '10pt', padding: pad }}>
             <p style={{ fontSize: '9pt', letterSpacing: '0.08em', textTransform: 'uppercase', color: '#444' }}>{org}</p>
             <h1 style={{ fontSize: '15pt', fontWeight: 700, margin: '2mm 0 4mm' }}>Breakdown schedule — Cheque {c.cheque_number}</h1>
             <table style={{ width: '100%', fontSize: '9.5pt', marginBottom: '5mm' }}><tbody>
@@ -54,12 +55,12 @@ export default function Schedule({ cheque: c, org, by }) {
                 actions={<button className="btn-primary" disabled={!c.lines.length} onClick={() => setPrinting(true)}><Icon name="printer" className="h-4 w-4" /> Print on A4</button>} />
             <div className="mb-4"><Banner tone="info">Prints on ordinary A4 paper — never on cheque stock. Choose <b>Margins: Default</b> and <b>Scale: 100%</b> in the print dialog.</Banner></div>
             {c.lines.length === 0 ? <div className="card card-pad text-center text-sm text-slate-500">This cheque has no breakdown rows.</div> : (
-                <div className="card mx-auto max-w-[210mm] overflow-auto bg-white shadow-card">{body}</div>
+                <div className="card mx-auto max-w-[210mm] overflow-auto bg-white shadow-card">{sheet('14mm')}</div>
             )}
             {printing && createPortal(
                 <div id="print-root" className="print-only">
-                    <style>{'@page { size: A4 portrait; margin: 0; } html, body { margin: 0; padding: 0; }'}</style>
-                    {body}
+                    <style>{'@page { size: A4 portrait; margin: 14mm; } html, body { margin: 0; padding: 0; }'}</style>
+                    {sheet(0)}
                 </div>, document.body)}
         </AuthenticatedLayout>
     );

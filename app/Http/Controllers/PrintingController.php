@@ -180,21 +180,32 @@ class PrintingController extends Controller
         ]);
     }
 
-    /** How many breakdown rows will not fit in the template's table (0 when everything fits). */
+    /**
+     * How many breakdown rows go to the A4 schedule instead of the advice (0 when everything fits).
+     * Mirrors planTable() in PrintSheet.jsx: when rows overflow, one row slot is used by the
+     * "…and N more items" note, so N = count - (cap - 1).
+     */
     private function overflowRows(Cheque $c): int
     {
         $table = collect($this->service->templateFor($c)?->layout['fields'] ?? [])->firstWhere('type', 'table');
         if (! $table) {
             return 0;
         }
-        $max = (int) ($table['max_rows'] ?? 15);
+        $cap = max(1, (int) ($table['max_rows'] ?? 15));
         $count = $c->lines->count();
+        if ($count <= $cap) {
+            return 0;
+        }
         if (($table['overflow'] ?? 'schedule') === 'shrink') {
-            $factor = max(min((float) ($table['min_font_size'] ?? 7), (float) $table['font_size']) / (float) $table['font_size'], $max / max($count, 1));
-            $max = (int) floor($max / $factor);
+            $font = (float) ($table['font_size'] ?? 9) ?: 9.0;
+            $factor = max(min((float) ($table['min_font_size'] ?? 7), $font) / $font, $cap / $count);
+            $cap = (int) floor($cap / $factor + 1e-9);
+            if ($count <= $cap) {
+                return 0;
+            }
         }
 
-        return max(0, $count - $max);
+        return $count - ($cap - 1);
     }
 
     private function job(PrintJob $j): array

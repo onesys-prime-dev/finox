@@ -206,6 +206,15 @@ class TemplateController extends Controller
             'background' => 'nullable|file|max:10240',
         ]);
         unset($data['background']);
+        // "breakdown" is rows, not text: it belongs to a table field, and a table field shows nothing else.
+        foreach ($data['layout']['fields'] as $i => $f) {
+            $isTable = ($f['type'] ?? 'text') === 'table';
+            if ($isTable !== (($f['source'] ?? null) === 'breakdown')) {
+                throw ValidationException::withMessages(["layout.fields.{$i}.source" => $isTable
+                    ? 'A table field must show the breakdown.'
+                    : 'Field "'.($f['key'] ?? $i).'": the breakdown can only be printed by a table field. Use "Add breakdown table".']);
+            }
+        }
         $data['layout'] = $this->normaliseLayout($data['layout']);
         $data['offset_x_mm'] ??= 0;
         $data['offset_y_mm'] ??= 0;

@@ -6,6 +6,12 @@ import { Spinner } from './ui';
 import { parseAmount } from '@/lib/amountInWords';
 import { money } from '@/lib/format';
 
+/** Every server error for one row (amount, reference, vendor, particulars, date, receipt). */
+function rowErrors(errors, i) {
+    const prefix = `lines.${i}.`;
+    return Object.entries(errors).filter(([k]) => k.startsWith(prefix)).map(([, v]) => v);
+}
+
 const blank = () => ({ line_date: '', reference_no: '', vendor: '', particulars: '', amount: '', receipt_id: null });
 
 /** Sum of valid row amounts in centavos (no float drift on display). */
@@ -65,7 +71,7 @@ export default function ChequeBreakdown({ lines, setLines, amount, payeeId, paye
                             <div key={i} className="rounded-lg border border-slate-100 bg-slate-50/50 p-2">
                                 <div className="grid grid-cols-[8.5rem_minmax(0,1fr)_8.5rem_auto] items-end gap-2">
                                     <label className="block">{lab('Date')}<input type="date" className="input !py-1.5 text-sm" aria-label={`Row ${i + 1} date`} disabled={locked} value={l.line_date ?? ''} onChange={(e) => update(i, { line_date: e.target.value })} /></label>
-                                    <label className="block">{lab('OR / invoice no.')}<input className="input !py-1.5 font-mono text-sm" aria-label={`Row ${i + 1} OR or invoice no.`} placeholder="OR / INV no." disabled={locked} value={l.reference_no ?? ''} onChange={(e) => update(i, { reference_no: e.target.value })} /></label>
+                                    <label className="block">{lab('OR / invoice no.')}<input className="input !py-1.5 font-mono text-sm" aria-label={`Row ${i + 1} OR or invoice no.`} placeholder="OR / INV no." maxLength={60} disabled={locked} value={l.reference_no ?? ''} onChange={(e) => update(i, { reference_no: e.target.value })} /></label>
                                     <label className="block">{lab('Amount')}
                                         <input inputMode="decimal" className={`input !py-1.5 text-right font-mono text-sm ${errors[`lines.${i}.amount`] || (l.amount !== '' && !parseAmount(l.amount)) ? 'input-error' : ''}`} aria-label={`Row ${i + 1} amount`} placeholder="0.00" disabled={locked} value={l.amount ?? ''} onChange={(e) => update(i, { amount: e.target.value })} />
                                     </label>
@@ -78,10 +84,10 @@ export default function ChequeBreakdown({ lines, setLines, amount, payeeId, paye
                                         </>}
                                     </div>
                                 </div>
-                                {errors[`lines.${i}.amount`] && <p className="error">{errors[`lines.${i}.amount`]}</p>}
+                                {rowErrors(errors, i).map((m, k) => <p key={k} className="error">{m}</p>)}
                                 <div className="mt-2 grid grid-cols-2 gap-2">
-                                    <label className="block">{lab('Vendor')}<input className="input !py-1.5 text-sm" aria-label={`Row ${i + 1} vendor`} placeholder="Vendor" disabled={locked} value={l.vendor ?? ''} onChange={(e) => update(i, { vendor: e.target.value })} /></label>
-                                    <label className="block">{lab('Particulars')}<input className="input !py-1.5 text-sm" aria-label={`Row ${i + 1} particulars`} placeholder="Particulars" disabled={locked} value={l.particulars ?? ''} onChange={(e) => update(i, { particulars: e.target.value })} /></label>
+                                    <label className="block">{lab('Vendor')}<input className="input !py-1.5 text-sm" aria-label={`Row ${i + 1} vendor`} placeholder="Vendor" maxLength={255} disabled={locked} value={l.vendor ?? ''} onChange={(e) => update(i, { vendor: e.target.value })} /></label>
+                                    <label className="block">{lab('Particulars')}<input className="input !py-1.5 text-sm" aria-label={`Row ${i + 1} particulars`} placeholder="Particulars" maxLength={255} disabled={locked} value={l.particulars ?? ''} onChange={(e) => update(i, { particulars: e.target.value })} /></label>
                                 </div>
                             </div>
                         );
@@ -120,9 +126,11 @@ function ReceiptPicker({ show, onClose, onAdd, payeeId, payeeName, chequeId, tak
         return () => { stale = true; clearTimeout(t); };
     }, [show, all, q, payeeId]);
 
+    // `sel` keeps the whole receipt, so ticks survive a new search or the "all vendors" switch.
     const list = rows.filter((r) => !taken.includes(r.id));
-    const toggle = (id) => setSel(sel.includes(id) ? sel.filter((x) => x !== id) : [...sel, id]);
-    const add = () => onAdd(list.filter((r) => sel.includes(r.id)).map((r) => ({
+    const picked = (id) => sel.some((s) => s.id === id);
+    const toggle = (r) => setSel(picked(r.id) ? sel.filter((s) => s.id !== r.id) : [...sel, r]);
+    const add = () => onAdd(sel.filter((r) => !taken.includes(r.id)).map((r) => ({
         line_date: r.receipt_date ?? '', reference_no: r.receipt_number ?? '', vendor: r.vendor ?? '', particulars: r.description ?? '', amount: r.amount, receipt_id: r.id,
     })));
 
@@ -139,15 +147,15 @@ function ReceiptPicker({ show, onClose, onAdd, payeeId, payeeName, chequeId, tak
                     <table className="tbl">
                         <thead><tr><th className="w-8" /><th>Receipt</th><th>Date</th><th>Vendor</th><th>Description</th><th className="text-right">Amount</th></tr></thead>
                         <tbody>{list.map((r) => (
-                            <tr key={r.id} className="cursor-pointer hover:bg-slate-50" onClick={() => toggle(r.id)}>
-                                <td><input type="checkbox" className="rounded border-slate-300 text-brand-600" checked={sel.includes(r.id)} onChange={() => toggle(r.id)} onClick={(e) => e.stopPropagation()} aria-label={`Select ${r.receipt_number}`} /></td>
+                            <tr key={r.id} className="cursor-pointer hover:bg-slate-50" onClick={() => toggle(r)}>
+                                <td><input type="checkbox" className="rounded border-slate-300 text-brand-600" checked={picked(r.id)} onChange={() => toggle(r)} onClick={(e) => e.stopPropagation()} aria-label={`Select ${r.receipt_number}`} /></td>
                                 <td className="font-mono text-[13px]">{r.receipt_number ?? `#${r.id}`}</td><td className="whitespace-nowrap text-slate-600">{r.receipt_date ?? '—'}</td>
                                 <td className="max-w-[10rem] truncate">{r.vendor}</td><td className="max-w-[14rem] truncate text-slate-600">{r.description}</td><td className="num">{money(r.amount)}</td>
                             </tr>))}</tbody>
                     </table>
                 )}
             </div>
-            {sel.length > 0 && <p className="mt-2 text-xs text-slate-500">Selected total: {money((list.filter((r) => sel.includes(r.id)).reduce((s, r) => s + Math.round(Number(r.amount) * 100), 0) / 100).toFixed(2))}</p>}
+            {sel.length > 0 && <p className="mt-2 text-xs text-slate-500">Selected: {sel.length} receipt(s), total {money((sel.reduce((s, r) => s + Math.round(Number(r.amount) * 100), 0) / 100).toFixed(2))}{sel.some((r) => !list.some((x) => x.id === r.id)) ? ' — includes receipts from an earlier search' : ''}</p>}
         </Modal>
     );
 }

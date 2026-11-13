@@ -14,13 +14,33 @@ return new class extends Migration
             return;
         }
         $layout = json_decode($t->layout, true) ?: [];
-        // Only touch templates that still have the original advice fields.
         $keys = array_column($layout['fields'] ?? [], 'key');
         if (in_array('breakdown', $keys, true)) {
-            return;
+            return; // already upgraded
+        }
+        // Replace only the advice fields FINOX shipped (and sources that no longer exist).
+        // Advice fields an admin added are kept as they are.
+        $stock = ['adv_payee', 'adv_amount', 'adv_purpose', 'adv_ref', 'adv_by', 'adv_rcp_refs', 'adv_rcp_amts', 'adv_rcp_total', 'adv_date', 'adv_chk', 'adv_apr'];
+        $gone = ['receipt_refs', 'receipt_amounts', 'receipt_total'];
+        $custom = [];
+        $other = [];
+        foreach ($layout['fields'] ?? [] as $f) {
+            if (($f['region'] ?? null) !== 'advice') {
+                $other[] = $f;
+            } elseif (! in_array($f['key'] ?? '', $stock, true) && ! in_array($f['source'] ?? '', $gone, true)) {
+                $custom[] = $f;
+            }
+        }
+        $upgraded = BdoAdviceLayout::apply(['fields' => $other] + $layout);
+        $taken = array_column($upgraded['fields'], 'key');
+        foreach ($custom as $f) {
+            if (in_array($f['key'] ?? '', $taken, true)) {
+                $f['key'] .= '_custom';
+            }
+            $upgraded['fields'][] = $f;
         }
         DB::table('print_templates')->where('id', $t->id)->update([
-            'layout' => json_encode(BdoAdviceLayout::apply($layout)),
+            'layout' => json_encode($upgraded),
             'version' => $t->version + 1,
             'updated_at' => now(),
         ]);
@@ -28,6 +48,6 @@ return new class extends Migration
 
     public function down(): void
     {
-        // The previous advice fields are not restored; edit the template in the editor if needed.
+        // The shipped advice fields are not restored (custom ones were kept); edit the template in the editor if needed.
     }
 };

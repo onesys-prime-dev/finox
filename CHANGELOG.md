@@ -3,6 +3,7 @@
 ## [Unreleased](https://github.com/laravel/laravel/compare/v12.12.1...12.x)
 
 * FINOX: cheque breakdown rows (typed or from receipts) printed as a table on the Payment Advice, table field in the template engine, BDO template v3, A4 overflow schedule, "Cheque Breakdown" report. Plus the code-review fixes (cancel/void rule, print race, login throttle, CSV safety, local-time dates, strict amount commas).
+* FINOX: breakdown review fixes. A receipt can no longer end up on two cheques (receipt form and breakdown now check each other). Breakdown rows accept only receipts the user may see that are recorded/verified/processed. A bad row amount is a validation error, not a 500. The overflow warning count now matches what prints, and shrink-to-fit no longer drops rows that fit. A4 schedule pages after page 1 keep their margin. "breakdown" is offered for table fields only. The BDO template upgrade keeps admin-added advice fields. All row errors are shown on the form. The receipt picker keeps ticks across searches.
 
 ## [v12.12.1](https://github.com/laravel/laravel/compare/v12.12.0...v12.12.1) - 2026-03-10
 

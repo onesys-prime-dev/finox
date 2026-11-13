@@ -309,6 +309,26 @@ class ChequeService
         if (count($receiptIds) !== count(array_unique($receiptIds))) {
             throw ValidationException::withMessages(['lines' => 'The same receipt is listed twice.']);
         }
+
+        $before = $cheque->lines()->get();
+        $oldReceipts = $before->pluck('receipt_id')->filter()->map(fn ($id) => (int) $id)->all();
+
+        // Newly added receipts must be ones this user may see and that are ready to pay.
+        $newIds = array_values(array_diff($receiptIds, $oldReceipts));
+        if ($newIds) {
+            $usable = Receipt::visibleTo($user)->whereIn('id', $newIds)
+                ->whereIn('status', ['recorded', 'verified', 'processed'])->pluck('id')->map(fn ($id) => (int) $id)->all();
+            if (array_diff($newIds, $usable)) {
+                throw ValidationException::withMessages(['lines' => 'One or more selected receipts cannot be added (not visible to you, or not recorded yet).']);
+            }
+            // A receipt linked to another active cheque from the receipt form is already being paid.
+            $linked = Receipt::whereIn('id', $newIds)->whereNotNull('cheque_id')->where('cheque_id', '!=', $cheque->id)
+                ->whereHas('cheque', fn ($q) => $q->whereNotIn('status', ['cancelled', 'voided']))
+                ->with('cheque:id,cheque_number')->first();
+            if ($linked) {
+                throw ValidationException::withMessages(['lines' => 'Receipt '.($linked->receipt_number ?: '#'.$linked->id)." is already linked to cheque {$linked->cheque->cheque_number}."]);
+            }
+        }
         if ($receiptIds) {
             $taken = ChequeLine::whereIn('receipt_id', $receiptIds)->where('cheque_id', '!=', $cheque->id)
                 ->whereHas('cheque', fn ($q) => $q->whereNotIn('status', ['cancelled', 'voided']))
@@ -318,9 +338,7 @@ class ChequeService
             }
         }
 
-        $before = $cheque->lines()->get();
         $oldTotal = Money::sum($before->pluck('amount'));
-        $oldReceipts = $before->pluck('receipt_id')->filter()->all();
 
         $cheque->lines()->delete();
         foreach ($clean as $n => $row) {

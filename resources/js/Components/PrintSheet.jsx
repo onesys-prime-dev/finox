@@ -47,7 +47,9 @@ export function planTable(f, data) {
             const factor = Math.max(Math.min(f.min_font_size || 7, font) / font, max / rows.length);
             font *= factor;
             rowH *= factor;
-            const cap = Math.floor(max / factor);
+            // Epsilon: 23 / (23/30) is 29.999… in floating point; without it a row that fits is cut.
+            // Keep in step with PrintingController::overflowRows().
+            const cap = Math.floor(max / factor + 1e-9);
             if (rows.length > cap) { shown = rows.slice(0, cap - 1); more = rows.length - (cap - 1); }
         } else {
             shown = rows.slice(0, max - 1);

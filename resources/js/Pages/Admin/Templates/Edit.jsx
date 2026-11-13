@@ -141,7 +141,7 @@ export default function Edit({ template, sources, kind }) {
                         <div className="card card-pad space-y-3">
                             <div className="flex items-center justify-between"><p className="card-title">Field: {f.key}</p><button className="text-xs font-medium text-red-600 hover:underline" onClick={() => remove(sel)}>Remove</button></div>
                             <Field label="Name"><input className="input" value={f.key} onChange={(e) => setField(sel, { key: e.target.value })} /></Field>
-                            <Field label="Shows"><select className="input" value={f.source} onChange={(e) => setField(sel, { source: e.target.value })}>{sources[kind].map((s) => <option key={s}>{s}</option>)}</select></Field>
+                            <Field label="Shows"><select className="input" value={f.source} onChange={(e) => setField(sel, { source: e.target.value })}>{sources[kind].filter((s) => s !== 'breakdown').map((s) => <option key={s}>{s}</option>)}</select></Field>
                             {f.source === 'free_text' && <Field label="Text"><input className="input" value={f.text ?? ''} onChange={(e) => setField(sel, { text: e.target.value })} /></Field>}
                             <div className="grid grid-cols-3 gap-2">
                                 <Field label="X (mm)"><input type="number" step="0.1" className="input" value={f.x} onChange={(e) => setField(sel, { x: Number(e.target.value) })} /></Field>
