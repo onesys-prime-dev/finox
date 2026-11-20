@@ -49,7 +49,7 @@ actions are pinned to commit SHAs (Dependabot opens weekly update PRs).
 | License compliance | Composer (no-dev) and npm packages against the allowlist in `.github/scripts/check-licenses.mjs` (permissive + LGPL/MPL); GPL/AGPL/unknown fail | see the job's `run:` block |
 | Workflow and script lint | actionlint (with shellcheck of every `run:` block) and shellcheck of `.github/scripts/*.sh` | `actionlint`, `shellcheck .github/scripts/*.sh` |
 | Deploy script dry-run tests | `.github/scripts/test-deploy-remote.sh` runs `deploy-remote.sh` against a fake CloudPanel site: guards, first deploy, backup-before-migrate, rollback, failed migration, version guard, retention | Linux only: `bash .github/scripts/test-deploy-remote.sh` |
-| Tests (PHP 8.2, SQLite) | Full PHPUnit suite on the minimum supported PHP, in-memory SQLite (`phpunit.xml`) | `php artisan test` |
+| Tests (PHP 8.3, SQLite) | Full PHPUnit suite on the minimum supported PHP (`composer.json`: `^8.3`), in-memory SQLite (`phpunit.xml`) | `php artisan test` |
 | Tests and coverage (PHP 8.5, MySQL) | Full PHPUnit suite on production's PHP and MySQL 8 (incl. the MySQL `transaction_register` view and the route protection test), PCOV coverage with a floor (`COVERAGE_MIN` in `ci.yml`); coverage HTML/Clover artifact | `DB_CONNECTION=mysql DB_DATABASE=finox_test php artisan test --coverage` |
 | Migrations, seeders, backup, scheduler and queue | `migrate:fresh --seed`; seeding twice changes no row counts; `migrate:reset` leaves no tables/views (every `down()` works), then `migrate` again with nothing pending; `DemoSeeder`; `schedule:list` has `finox:flag-stale` and `finox:backup`; both commands run; the backup zip restores into a fresh database with the same tables; `queue:work --once` boots | see the job |
 | Config, route, view and event caching | With `APP_ENV=production`, `APP_DEBUG=false` and no dev packages: no `env()` outside `config/`; `php artisan optimize`; the cached app boots, lists routes and the schedule | `php artisan optimize && php artisan optimize:clear` |
@@ -218,7 +218,7 @@ Artifacts (bottom of the run page) hold reports.
 | License compliance | New dependency with a non-allowed license | Choose another package, or add a reviewed entry to `EXCEPTIONS` |
 | Workflow lint | Invalid workflow syntax/expression or a shellcheck warning | Run `actionlint` locally |
 | Deploy script dry-run | `deploy-remote.sh` change broke a scenario | Run the test script on Linux/WSL; the failing `not ok` line names the scenario |
-| Tests (8.2) | Code uses a PHP > 8.2 feature, or a test fails on SQLite | Keep PHP 8.2 syntax (composer allows `^8.2`) |
+| Tests (8.3) | Code uses a PHP > 8.3 feature, or a test fails on SQLite | Keep PHP 8.3 syntax (composer allows `^8.3`) |
 | Tests (8.5, MySQL) | MySQL-specific behaviour, or coverage below `COVERAGE_MIN` | Run tests against a local MySQL `finox_test`; add tests |
 | Migrations… | A `down()` leaves tables, seeder not idempotent, backup not restorable, schedule entry removed | Fix the migration/seeder; the step name says which |
 | Config caching | `env()` outside `config/`, a closure route, a Blade error | Move `env()` into a config file; use controller routes |

@@ -2,7 +2,7 @@
 
 Internal system for cheque preparation, receipts, documents, printing and reporting. No bank connection; release and clearing are entered manually.
 
-**Stack:** Laravel 12, Inertia.js, React, Tailwind, Vite, MySQL.
+**Stack:** Laravel 12 (PHP 8.3+; production runs 8.5), Inertia.js, React, Tailwind, Vite, MySQL 8.
 
 ## Setup
 
