@@ -1,0 +1,30 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+    - vendor/tomasvotruba/cognitive-complexity/config/extension.neon
+    - vendor/phpat/phpat/extension.neon
+    - phpstan-baseline.neon
+
+parameters:
+    level: 5
+    paths:
+        - app
+        - config
+        - database
+        - routes
+        - tests/Architecture
+    tmpDir: storage/framework/cache/phpstan
+
+    # Code complexity gate (tomasvotruba/cognitive-complexity).
+    cognitive_complexity:
+        function: 15
+        class: 80
+
+    # Architecture gate (phpat). Rules live in tests/Architecture.
+    phpat:
+        ignore_built_in_classes: true
+
+services:
+    -
+        class: Tests\Architecture\LayerTest
+        tags:
+            - phpat.test
