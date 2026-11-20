@@ -1,0 +1,16 @@
+# Keeps the SHA-pinned GitHub Actions (workflows and .github/actions/*) up to date.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directories:
+      - /
+      - /.github/actions/setup-php-app
+      - /.github/actions/setup-node-app
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      github-actions:
+        patterns: ['*']
+    commit-message:
+      prefix: ci

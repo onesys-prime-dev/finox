@@ -1,0 +1,47 @@
+name: Set up PHP app
+description: Install PHP with FINOX's extensions and install Composer dependencies (cached).
+
+inputs:
+  php-version:
+    description: PHP version
+    default: '8.5'
+  coverage:
+    description: Coverage driver (none, pcov, xdebug)
+    default: none
+  no-dev:
+    description: Install without dev dependencies (true/false)
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    - name: Set up PHP ${{ inputs.php-version }}
+      uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+      with:
+        php-version: ${{ inputs.php-version }}
+        # From the ext-* requirements in composer.lock, plus MySQL/SQLite drivers, gd/intl (dompdf, number formatting).
+        extensions: bcmath, ctype, curl, dom, fileinfo, gd, iconv, intl, mbstring, openssl, pdo, pdo_mysql, pdo_sqlite, sqlite3, tokenizer, xml, xmlreader, xmlwriter, zip
+        ini-values: memory_limit=1G
+        coverage: ${{ inputs.coverage }}
+        tools: composer:v2
+
+    - name: Locate Composer cache
+      id: composer-cache
+      shell: bash
+      run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+    - name: Cache Composer packages
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ${{ steps.composer-cache.outputs.dir }}
+        key: composer-${{ runner.os }}-php${{ inputs.php-version }}-${{ hashFiles('composer.lock') }}
+        restore-keys: composer-${{ runner.os }}-php${{ inputs.php-version }}-
+
+    - name: Install Composer dependencies
+      shell: bash
+      env:
+        NO_DEV: ${{ inputs.no-dev }}
+      run: |
+        flags=(--prefer-dist --no-interaction --no-progress)
+        if [[ "$NO_DEV" == "true" ]]; then flags+=(--no-dev --optimize-autoloader); fi
+        composer install "${flags[@]}"
