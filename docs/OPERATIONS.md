@@ -74,7 +74,7 @@ Measured on 50,000 records (dev server, MySQL 8): cheque list 40 ms, search 60�
 * `php artisan test` — 37+ PHP tests (roles, business rules, exports, retention). Runs on in-memory SQLite by default; add `DB_CONNECTION=mysql DB_DATABASE=finox_test DB_USERNAME=root` to run on MySQL too (the transaction register is a MySQL view).
 * `npm run e2e` — real-browser tests (Playwright/Chromium): every page as every role, and the full cheque lifecycle through the screens. It needs a separate database and server:
   1. Create the database `finox_test`, copy `.env` to `.env.e2e` and set `APP_ENV=e2e`, `DB_DATABASE=finox_test`, `SESSION_DRIVER=file`, `APP_URL=http://127.0.0.1:8765`.
-  2. `DB_DATABASE=finox_test php artisan migrate:fresh --seed` then `php artisan db:seed --class=DemoSeeder` and create the `e2e-<role>@finox.test` users (password in `e2e/helpers.js`).
+  2. `DB_DATABASE=finox_test php artisan migrate:fresh --seed`, then `php artisan db:seed --class=DemoSeeder`, then `APP_ENV=e2e php artisan db:seed --class=E2eUserSeeder` (creates the `e2e-<role>@finox.test` users; password in `e2e/helpers.js`; refuses to run unless `APP_ENV` is `e2e` or `testing`).
   3. `APP_ENV=e2e php artisan serve --host=127.0.0.1 --port=8765`, then `npm run e2e`.
 * Headless Chromium shows no print dialog, so the e2e print step sends the browser's `afterprint` signal itself. In a real browser the confirm window appears when the print dialog closes; if it ever does not, the job waits under "Awaiting confirmation" on the Print center.
 
