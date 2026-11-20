@@ -159,7 +159,7 @@ export default function Show({ cheque: c, can, preparationErrors, staleDays }) {
                                 </label>
                             )}
                         </div>
-                        {c.documents.length === 0 ? <p className="px-5 py-6 text-center text-sm text-slate-400">No documents attached.</p> : (
+                        {c.documents.length === 0 ? <p className="px-5 py-6 text-center text-sm text-slate-500">No documents attached.</p> : (
                             <ul className="divide-y divide-slate-100">
                                 {c.documents.map((d) => (
                                     <li key={d.id} className="flex items-center justify-between gap-3 px-5 py-3">

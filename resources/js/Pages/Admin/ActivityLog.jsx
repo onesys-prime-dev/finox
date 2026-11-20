@@ -18,8 +18,8 @@ export default function ActivityLog({ logs, filters, modules, users, retentionYe
             <div className="card">
                 <div className="flex flex-wrap items-center gap-2 p-4">
                     <div className="relative min-w-[14rem] flex-1"><Icon name="search" className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-400" /><input className="input pl-9" placeholder="Search description or record…" value={f.search ?? ''} onChange={(e) => apply({ ...f, search: e.target.value })} /></div>
-                    <select className="input !w-auto" value={f.module ?? ''} onChange={(e) => apply({ ...f, module: e.target.value }, true)}><option value="">All modules</option>{modules.map((m) => <option key={m}>{m}</option>)}</select>
-                    <select className="input !w-auto" value={f.user_id ?? ''} onChange={(e) => apply({ ...f, user_id: e.target.value }, true)}><option value="">Any user</option>{users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}</select>
+                    <select aria-label="Filter by module" className="input !w-auto" value={f.module ?? ''} onChange={(e) => apply({ ...f, module: e.target.value }, true)}><option value="">All modules</option>{modules.map((m) => <option key={m}>{m}</option>)}</select>
+                    <select aria-label="Filter by user" className="input !w-auto" value={f.user_id ?? ''} onChange={(e) => apply({ ...f, user_id: e.target.value }, true)}><option value="">Any user</option>{users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}</select>
                     <input type="date" className="input !w-auto" value={f.from ?? ''} onChange={(e) => apply({ ...f, from: e.target.value }, true)} aria-label="From" />
                     <input type="date" className="input !w-auto" value={f.to ?? ''} onChange={(e) => apply({ ...f, to: e.target.value }, true)} aria-label="To" />
                     <label className="flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" checked={!!f.archived} onChange={(e) => apply({ ...f, archived: e.target.checked ? 1 : '' }, true)} /> Include archived (older than {retentionYears} yrs)</label>
@@ -29,7 +29,7 @@ export default function ActivityLog({ logs, filters, modules, users, retentionYe
                         <tr key={l.id} className="row-link" onClick={() => setOpen(l)}>
                             <td className="whitespace-nowrap text-slate-600">{fmt.date(l.at, true)}</td><td className="whitespace-nowrap font-medium">{l.user}</td>
                             <td><span className="rounded bg-slate-100 px-2 py-0.5 text-xs text-slate-600">{l.module}</span></td>
-                            <td className="max-w-xl truncate">{l.description}{l.reason && <span className="ml-2 text-xs text-slate-400">“{l.reason}”</span>}</td>
+                            <td className="max-w-xl truncate">{l.description}{l.reason && <span className="ml-2 text-xs text-slate-500">“{l.reason}”</span>}</td>
                             <td><Icon name="chevronRight" className="h-4 w-4 text-slate-300" /></td></tr>))}</tbody></table>
                     {logs.data.length === 0 && <EmptyState icon="activity" title="No entries match" />}</div>
                 <Pagination links={logs.links} meta={logs} />

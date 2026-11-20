@@ -25,7 +25,7 @@ export default function Index({ payees, filters }) {
                     <tbody>{payees.data.map((p) => (
                         <tr key={p.id}><td className="font-medium">{p.name}</td><td className="text-slate-600">{p.tin ?? '—'}</td><td className="max-w-sm truncate text-slate-500" title={p.default_payee_line}>{p.default_payee_line ?? '—'}</td>
                             <td>{p.is_active ? <span className="badge bg-emerald-50 text-emerald-700 ring-emerald-200">Active</span> : <span className="badge bg-slate-100 text-slate-600 ring-slate-300">Inactive</span>}</td>
-                            <td><button className="btn-ghost btn-sm" onClick={() => open(p)}><Icon name="edit" className="h-4 w-4" /></button></td></tr>))}</tbody></table>
+                            <td><button className="btn-ghost btn-sm" onClick={() => open(p)} aria-label={`Edit ${p.name}`} title="Edit"><Icon name="edit" className="h-4 w-4" /></button></td></tr>))}</tbody></table>
                     {payees.data.length === 0 && <EmptyState icon="users" title="No payees found" />}</div>
                 <Pagination links={payees.links} meta={payees} />
             </div>
