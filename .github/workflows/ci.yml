@@ -146,7 +146,7 @@ jobs:
       - name: Upload Semgrep report
         if: ${{ always() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with: { name: 'semgrep-${{ github.run_attempt }}', path: semgrep.json, retention-days: 7, if-no-files-found: ignore }
+        with: { name: 'semgrep', path: semgrep.json, retention-days: 7, if-no-files-found: ignore, overwrite: true }
 
   licenses:
     name: License compliance
@@ -213,7 +213,7 @@ jobs:
       - name: Upload test report
         if: ${{ failure() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with: { name: 'tests-php82-${{ github.run_attempt }}', path: 'junit-php82.xml', retention-days: 7, if-no-files-found: ignore }
+        with: { name: 'tests-php82', path: 'junit-php82.xml', retention-days: 7, if-no-files-found: ignore, overwrite: true }
 
   tests-php85:
     name: Tests and coverage (PHP 8.5, MySQL)
@@ -262,12 +262,13 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: coverage-${{ github.run_attempt }}
+          name: coverage
           path: |
             coverage/
             junit-php85.xml
           retention-days: 7
           if-no-files-found: ignore
+          overwrite: true
 
   database:
     name: Migrations, seeders, backup, scheduler and queue (MySQL)
@@ -401,7 +402,7 @@ jobs:
         run: bash .github/scripts/check-manifest.sh
       - name: Upload frontend build (for E2E and performance jobs)
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with: { name: 'frontend-build-${{ github.run_attempt }}', path: public/build, retention-days: 1, if-no-files-found: error }
+        with: { name: 'frontend-build', path: public/build, retention-days: 1, if-no-files-found: error, overwrite: true }
       - uses: ./.github/actions/setup-php-app
         with: { no-dev: 'true' }
       - name: Platform requirements (PHP ${{ env.PHP_VERSION }}, no-dev)
@@ -436,6 +437,7 @@ jobs:
             dist/SHA256SUMS
           retention-days: 14
           if-no-files-found: error
+          overwrite: true
 
   e2e:
     name: Browser tests and accessibility (Playwright)
@@ -459,7 +461,7 @@ jobs:
       - uses: ./.github/actions/setup-node-app
       - name: Download frontend build
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with: { name: 'frontend-build-${{ github.run_attempt }}', path: public/build }
+        with: { name: 'frontend-build', path: public/build }
       - name: Prepare .env.e2e and database
         run: |
           bash .github/scripts/write-env.sh .env.e2e APP_ENV=e2e APP_DEBUG=true APP_URL=http://127.0.0.1:8765 \
@@ -491,13 +493,14 @@ jobs:
         if: ${{ failure() }}
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: e2e-report-${{ github.run_attempt }}
+          name: e2e-report
           path: |
             playwright-report/
             test-results/
             storage/logs/
           retention-days: 7
           if-no-files-found: ignore
+          overwrite: true
 
   performance:
     name: Performance budget (20k records)
@@ -520,7 +523,7 @@ jobs:
       - uses: ./.github/actions/setup-php-app
       - name: Download frontend build
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with: { name: 'frontend-build-${{ github.run_attempt }}', path: public/build }
+        with: { name: 'frontend-build', path: public/build }
       - name: Prepare database with load-test data
         run: |
           bash .github/scripts/write-env.sh .env.e2e APP_ENV=e2e APP_DEBUG=false LOG_LEVEL=warning APP_URL=http://127.0.0.1:8765 \

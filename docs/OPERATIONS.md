@@ -2,6 +2,10 @@
 
 For whoever installs, runs and backs up FINOX.
 
+> **Staging and production on the CloudPanel VPS are deployed by GitHub Actions** â€” see
+> [CI-CD.md](CI-CD.md) (pipeline, releases, rollback) and [SERVER-SETUP.md](SERVER-SETUP.md)
+> (one-time server setup). The manual steps below are for a local or single-machine install.
+
 ## 1. First-time setup
 
 ```bash
@@ -77,6 +81,9 @@ Measured on 50,000 records (dev server, MySQL 8): cheque list 40 ms, search 60â€
   2. `DB_DATABASE=finox_test php artisan migrate:fresh --seed`, then `php artisan db:seed --class=DemoSeeder`, then `APP_ENV=e2e php artisan db:seed --class=E2eUserSeeder` (creates the `e2e-<role>@finox.test` users; password in `e2e/helpers.js`; refuses to run unless `APP_ENV` is `e2e` or `testing`).
   3. `APP_ENV=e2e php artisan serve --host=127.0.0.1 --port=8765`, then `npm run e2e`.
 * Headless Chromium shows no print dialog, so the e2e print step sends the browser's `afterprint` signal itself. In a real browser the confirm window appears when the print dialog closes; if it ever does not, the job waits under "Awaiting confirmation" on the Print center.
+* `e2e/a11y.spec.js` scans every page with axe-core and fails on critical/serious accessibility violations.
+* Quality checks: `vendor/bin/pint --test`, `vendor/bin/phpstan analyse --memory-limit=2G`, `npm run lint`.
+* All of the above (plus security, license, migration, backup, performance and build checks) run in GitHub Actions on every pull request; see [CI-CD.md](CI-CD.md#2-ci-jobs).
 
 ## Scheduler (Windows)
 
