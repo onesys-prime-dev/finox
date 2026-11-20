@@ -2,10 +2,17 @@
 
 namespace App\Providers;
 
+use App\Models\Bank;
+use App\Models\BankAccount;
 use App\Models\Cheque;
 use App\Models\DocumentFile;
+use App\Models\Payee;
 use App\Models\PrintJob;
+use App\Models\PrintTemplate;
 use App\Models\Receipt;
+use App\Models\ReceiptCategory;
+use App\Models\Role;
+use App\Models\SystemSetting;
 use App\Models\User;
 use App\Policies\ChequePolicy;
 use App\Policies\DocumentFilePolicy;
@@ -33,13 +40,13 @@ class AppServiceProvider extends ServiceProvider
             'document' => DocumentFile::class,
             'user' => User::class,
             'print_job' => PrintJob::class,
-            'bank' => \App\Models\Bank::class,
-            'bank_account' => \App\Models\BankAccount::class,
-            'payee' => \App\Models\Payee::class,
-            'role' => \App\Models\Role::class,
-            'print_template' => \App\Models\PrintTemplate::class,
-            'receipt_category' => \App\Models\ReceiptCategory::class,
-            'setting' => \App\Models\SystemSetting::class,
+            'bank' => Bank::class,
+            'bank_account' => BankAccount::class,
+            'payee' => Payee::class,
+            'role' => Role::class,
+            'print_template' => PrintTemplate::class,
+            'receipt_category' => ReceiptCategory::class,
+            'setting' => SystemSetting::class,
         ]);
 
         Gate::policy(Cheque::class, ChequePolicy::class);

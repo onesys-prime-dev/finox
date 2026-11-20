@@ -59,19 +59,23 @@ class PrintingService
                     : [ChequeStatus::Prepared];
                 if (! in_array($r->status, $okStatuses, true)) {
                     $failures[$r->id] = "{$label} is {$r->status->label()}".($reprint ? ' and cannot be reprinted.' : '; only Prepared cheques can be printed.');
+
                     continue;
                 }
                 if (! $r->bankAccount?->template?->is_active) {
                     $failures[$r->id] = "{$label}: no active print template is assigned to its bank account.";
+
                     continue;
                 }
             } else {
                 if (in_array($r->status, [ReceiptStatus::Draft, ReceiptStatus::Cancelled], true)) {
                     $failures[$r->id] = "{$label} is {$r->status->label()} and cannot be printed.";
+
                     continue;
                 }
                 if (! $this->templateFor($r)) {
                     $failures[$r->id] = 'No active receipt template is configured.';
+
                     continue;
                 }
             }

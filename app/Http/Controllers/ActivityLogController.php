@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
 use App\Models\User;
+use App\Support\Settings;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -21,7 +22,7 @@ class ActivityLogController extends Controller
             ->when($request->user_id, fn ($q, $v) => $q->where('user_id', $v))
             ->when($request->from, fn ($q, $v) => $q->whereDate('created_at', '>=', $v))
             ->when($request->to, fn ($q, $v) => $q->whereDate('created_at', '<=', $v))
-            ->when(! $request->boolean('archived'), fn ($q) => $q->where('created_at', '>=', \App\Support\Settings::retentionCutoff()))
+            ->when(! $request->boolean('archived'), fn ($q) => $q->where('created_at', '>=', Settings::retentionCutoff()))
             ->latest('id')->paginate(40)->withQueryString()
             ->through(fn ($l) => [
                 'id' => $l->id, 'at' => $l->created_at->toDateTimeString(), 'user' => $l->user?->name ?? 'System', 'module' => $l->module,
@@ -31,7 +32,7 @@ class ActivityLogController extends Controller
 
         return Inertia::render('Admin/ActivityLog', [
             'logs' => $logs, 'filters' => $request->only('search', 'module', 'user_id', 'from', 'to', 'archived'),
-            'retentionYears' => (int) \App\Support\Settings::get('retention_years', 10),
+            'retentionYears' => (int) Settings::get('retention_years', 10),
             'modules' => ActivityLog::select('module')->distinct()->orderBy('module')->pluck('module'),
             'users' => User::orderBy('name')->get(['id', 'name']),
         ]);

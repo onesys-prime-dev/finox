@@ -3,8 +3,8 @@
 namespace App\Support;
 
 use App\Models\SystemSetting;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Schema;
 
 class Settings
 {
@@ -48,7 +48,7 @@ class Settings
     }
 
     /** Records older than this are "archived": hidden from default lists, never deleted. */
-    public static function retentionCutoff(): \Illuminate\Support\Carbon
+    public static function retentionCutoff(): Carbon
     {
         return now()->subYears(max(1, (int) self::get('retention_years', 10)));
     }

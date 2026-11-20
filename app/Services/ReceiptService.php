@@ -7,6 +7,7 @@ use App\Models\ChequeLine;
 use App\Models\Receipt;
 use App\Models\User;
 use App\Support\Money;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -76,7 +77,7 @@ class ReceiptService
         return $e;
     }
 
-    /** @return array{exact: ?Receipt, similar: \Illuminate\Support\Collection} */
+    /** @return array{exact: ?Receipt, similar: Collection} */
     public function duplicates(?string $number, ?int $payeeId, ?int $ignoreId = null): array
     {
         if (! $number) {

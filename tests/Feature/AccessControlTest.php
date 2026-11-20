@@ -2,8 +2,10 @@
 
 namespace Tests\Feature;
 
-use App\Models\Cheque;
+use App\Models\BankAccount;
 use App\Models\DocumentFile;
+use App\Models\Payee;
+use App\Services\ChequeService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -37,9 +39,9 @@ class AccessControlTest extends TestCase
     {
         $a = $this->userWithRole('encoder');
         $b = $this->userWithRole('encoder');
-        $c = \App\Services\ChequeService::class;
-        $mine = app($c)->create(['bank_account_id' => \App\Models\BankAccount::first()->id, 'cheque_number' => '1', 'cheque_date' => now()->toDateString(), 'payee_id' => \App\Models\Payee::first()->id, 'amount' => '10'], $a);
-        $theirs = app($c)->create(['bank_account_id' => \App\Models\BankAccount::first()->id, 'cheque_number' => '2', 'cheque_date' => now()->toDateString(), 'payee_id' => \App\Models\Payee::first()->id, 'amount' => '10'], $b);
+        $c = ChequeService::class;
+        $mine = app($c)->create(['bank_account_id' => BankAccount::first()->id, 'cheque_number' => '1', 'cheque_date' => now()->toDateString(), 'payee_id' => Payee::first()->id, 'amount' => '10'], $a);
+        $theirs = app($c)->create(['bank_account_id' => BankAccount::first()->id, 'cheque_number' => '2', 'cheque_date' => now()->toDateString(), 'payee_id' => Payee::first()->id, 'amount' => '10'], $b);
         $this->actingAs($a)->get("/cheques/{$mine->id}")->assertOk();
         $this->actingAs($a)->get("/cheques/{$theirs->id}")->assertForbidden();
         $this->actingAs($a)->post("/cheques/{$mine->id}/prepare")->assertForbidden();

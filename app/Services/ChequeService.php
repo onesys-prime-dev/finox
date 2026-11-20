@@ -3,13 +3,13 @@
 namespace App\Services;
 
 use App\Enums\ChequeStatus;
-use App\Models\BankAccount;
 use App\Models\Cheque;
 use App\Models\ChequeLine;
 use App\Models\Receipt;
 use App\Models\User;
 use App\Support\AmountInWords;
 use App\Support\Money;
+use App\Support\Settings;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -248,7 +248,7 @@ class ChequeService
     /** Flag cheques that passed the stale period (a user confirms the actual status change). */
     public function flagStale(): int
     {
-        $cutoff = now()->subDays((int) \App\Support\Settings::get('stale_days', 180))->toDateString();
+        $cutoff = now()->subDays((int) Settings::get('stale_days', 180))->toDateString();
 
         return Cheque::whereIn('status', ['released', 'for_clearing'])
             ->whereNull('stale_flagged_at')

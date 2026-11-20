@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\ChequeStatus;
+use App\Support\Money;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -64,7 +65,7 @@ class Cheque extends Model
     /** Sum of the breakdown rows, as a 2-decimal string. */
     public function linesTotal(): string
     {
-        return \App\Support\Money::sum($this->lines->pluck('amount'));
+        return Money::sum($this->lines->pluck('amount'));
     }
 
     public function receipts(): HasMany

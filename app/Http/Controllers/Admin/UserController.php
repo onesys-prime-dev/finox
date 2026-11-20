@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
 use App\Models\LoginHistory;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\ActivityLogService;
 use App\Support\PasswordRules;
+use App\Support\Settings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -40,7 +42,7 @@ class UserController extends Controller
 
         return Inertia::render('Admin/Users', [
             'users' => $users, 'roles' => Role::orderBy('label')->get(['id', 'label']), 'filters' => $request->only('search'),
-            'passwordMin' => (int) \App\Support\Settings::get('password_min_length', 10),
+            'passwordMin' => (int) Settings::get('password_min_length', 10),
         ]);
     }
 
@@ -122,7 +124,7 @@ class UserController extends Controller
         return Inertia::render('Admin/UserShow', [
             'user' => ['id' => $user->id, 'name' => $user->name, 'email' => $user->email, 'role' => $user->role?->label, 'is_active' => $user->is_active, 'last_login_at' => $user->last_login_at?->toDateTimeString()],
             'logins' => LoginHistory::where('user_id', $user->id)->latest('id')->limit(30)->get(['event', 'ip', 'user_agent', 'created_at']),
-            'activity' => \App\Models\ActivityLog::where('user_id', $user->id)->latest('id')->limit(40)->get(['id', 'module', 'action', 'description', 'created_at']),
+            'activity' => ActivityLog::where('user_id', $user->id)->latest('id')->limit(40)->get(['id', 'module', 'action', 'description', 'created_at']),
         ]);
     }
 }

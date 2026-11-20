@@ -2,13 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\ChequeStatus;
+use App\Enums\ReceiptStatus;
 use App\Models\ActivityLog;
 use App\Models\BankAccount;
 use App\Models\Cheque;
 use App\Models\PrintJob;
-use App\Models\PrintTemplate;
+use App\Models\ProblemReport;
 use App\Models\Receipt;
 use App\Models\User;
+use App\Services\RegisterQuery;
 use App\Support\Money;
 use App\Support\Settings;
 use Illuminate\Http\Request;
@@ -91,7 +94,7 @@ class DashboardController extends Controller
             $by = fn ($s) => (int) ($counts[$s]->c ?? 0);
             $out['cheques'] = [
                 'total' => (int) $counts->sum('c'),
-                'by_status' => collect(\App\Enums\ChequeStatus::cases())->map(fn ($s) => ['status' => $s->value, 'label' => $s->label(), 'count' => $by($s->value)])->values(),
+                'by_status' => collect(ChequeStatus::cases())->map(fn ($s) => ['status' => $s->value, 'label' => $s->label(), 'count' => $by($s->value)])->values(),
                 'outstanding_count' => $by('released') + $by('for_clearing'),
                 'outstanding_amount' => Money::sum([$counts['released']->s ?? 0, $counts['for_clearing']->s ?? 0]),
                 'total_amount' => Money::sum($counts->where(fn ($r, $k) => ! in_array($k, ['cancelled', 'voided']))->pluck('s')),
@@ -104,7 +107,7 @@ class DashboardController extends Controller
             $counts = $base()->selectRaw('status, count(*) c, sum(amount) s')->groupBy('status')->get()->keyBy(fn ($r) => $r->status->value);
             $out['receipts'] = [
                 'total' => (int) $counts->sum('c'),
-                'by_status' => collect(\App\Enums\ReceiptStatus::cases())->map(fn ($s) => ['status' => $s->value, 'label' => $s->label(), 'count' => (int) ($counts[$s->value]->c ?? 0)])->values(),
+                'by_status' => collect(ReceiptStatus::cases())->map(fn ($s) => ['status' => $s->value, 'label' => $s->label(), 'count' => (int) ($counts[$s->value]->c ?? 0)])->values(),
                 'total_amount' => Money::sum($counts->where(fn ($r, $k) => $k !== 'cancelled' && $k !== 'draft')->pluck('s')),
             ];
         }
@@ -122,7 +125,7 @@ class DashboardController extends Controller
         }
         $tx = [];
         if ($u->hasPermission('register.view')) {
-            $tx = (new \App\Services\RegisterQuery)->recent(6)->map(fn ($t) => (array) $t)->all();
+            $tx = (new RegisterQuery)->recent(6)->map(fn ($t) => (array) $t)->all();
         }
 
         return ['activity' => $log, 'transactions' => $tx];
@@ -141,7 +144,7 @@ class DashboardController extends Controller
         if ($n = \DB::table('failed_jobs')->count()) {
             $a[] = ['tone' => 'danger', 'text' => "{$n} failed background job(s)", 'url' => null];
         }
-        if ($n = \App\Models\ProblemReport::where('is_resolved', false)->count()) {
+        if ($n = ProblemReport::where('is_resolved', false)->count()) {
             $a[] = ['tone' => 'warn', 'text' => "{$n} open problem report(s)", 'url' => route('admin.problems.index')];
         }
 

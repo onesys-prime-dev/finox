@@ -8,9 +8,13 @@ use App\Models\Cheque;
 use App\Models\DocumentFile;
 use App\Models\PrintLog;
 use App\Models\Receipt;
+use App\Models\User;
 use App\Services\ActivityLogService;
 use App\Support\Money;
+use App\Support\Settings;
+use App\Support\TableExport;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 use Inertia\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -62,8 +66,8 @@ class ReportController extends Controller
             'totalRows' => $total, 'truncated' => $total > $cap,
             'filters' => $request->only('from', 'to', 'status', 'bank_account_id', 'user_id', 'all', 'q'),
             'accounts' => BankAccount::with('bank:id,name')->get()->map(fn ($a) => ['id' => $a->id, 'label' => $a->display_name]),
-            'users' => \App\Models\User::orderBy('name')->get(['id', 'name']),
-            'org' => \App\Support\Settings::get('org_name'),
+            'users' => User::orderBy('name')->get(['id', 'name']),
+            'org' => Settings::get('org_name'),
             'generatedBy' => $request->user()->name,
         ]);
     }
@@ -71,7 +75,7 @@ class ReportController extends Controller
     public function export(Request $request, string $report): StreamedResponse
     {
         [$title, $columns, $rows] = $this->build($request, $report);
-        $fmt = \App\Support\TableExport::format($request->input('format'));
+        $fmt = TableExport::format($request->input('format'));
         ActivityLogService::log('report.exported', 'reports', "Exported report: {$title} (".strtoupper($fmt).')');
 
         $numeric = array_keys(array_filter(array_column($columns, 'type'), fn ($t) => $t === 'money'));
@@ -81,7 +85,7 @@ class ReportController extends Controller
             }
         })();
 
-        return \App\Support\TableExport::stream($report, $fmt, array_column($columns, 'label'), $out, $numeric);
+        return TableExport::stream($report, $fmt, array_column($columns, 'label'), $out, $numeric);
     }
 
     private const LOG_CAP = 5000;
@@ -170,7 +174,7 @@ class ReportController extends Controller
 
                 return [$title, $chequeCols, $rows, $sumC($rows)];
             case 'cheque-breakdown':
-                $q = \Illuminate\Support\Facades\DB::table('cheque_lines as l')
+                $q = DB::table('cheque_lines as l')
                     ->join('cheques as c', 'c.id', '=', 'l.cheque_id')->join('bank_accounts as a', 'a.id', '=', 'c.bank_account_id')
                     ->join('banks as b', 'b.id', '=', 'a.bank_id')->join('payees as p', 'p.id', '=', 'c.payee_id');
                 $date($q, 'c.cheque_date');
@@ -220,14 +224,19 @@ class ReportController extends Controller
                 $c = $date(Cheque::query(), 'cheque_date')->selectRaw('status, count(*) n, sum(amount) s')->groupBy('status')->get();
                 $x = $date(Receipt::query(), 'receipt_date')->selectRaw('status, count(*) n, sum(amount) s')->groupBy('status')->get();
                 $rows = [];
-                foreach ($c as $v) { $rows[] = ['type' => 'Cheque', 'status' => $v->status->value, 'count' => $v->n, 'amount' => (string) ($v->s ?? 0)]; }
-                foreach ($x as $v) { $rows[] = ['type' => 'Receipt', 'status' => $v->status->value, 'count' => $v->n, 'amount' => (string) ($v->s ?? 0)]; }
+                foreach ($c as $v) {
+                    $rows[] = ['type' => 'Cheque', 'status' => $v->status->value, 'count' => $v->n, 'amount' => (string) ($v->s ?? 0)];
+                }
+                foreach ($x as $v) {
+                    $rows[] = ['type' => 'Receipt', 'status' => $v->status->value, 'count' => $v->n, 'amount' => (string) ($v->s ?? 0)];
+                }
 
                 return [$title, [$col('type', 'Type'), $col('status', 'Status', 'status'), $col('count', 'Count'), $col('amount', 'Amount', 'money')], $rows,
                     [['label' => 'Note', 'value' => 'Cheque and receipt amounts are never combined']]];
             case 'printing-history':
                 $q = $date(PrintLog::with('user:id,name', 'job')->latest('id'), 'created_at')->limit(self::LOG_CAP + 1)->get();
-                $more = $q->count() > self::LOG_CAP; $q = $q->take(self::LOG_CAP);
+                $more = $q->count() > self::LOG_CAP;
+                $q = $q->take(self::LOG_CAP);
                 $rows = $q->map(fn ($l) => [
                     'at' => $l->created_at->toDateTimeString(), 'type' => $l->printable_type, 'record' => $l->printable_id,
                     'user' => $l->user?->name, 'reprint' => $l->is_reprint ? 'Yes' : 'No', 'status' => $l->status, 'reason' => $l->job?->reason,
@@ -237,13 +246,15 @@ class ReportController extends Controller
                     array_merge([['label' => 'Entries', 'value' => count($rows)], ['label' => 'Reprints', 'value' => collect($rows)->where('reprint', 'Yes')->count()]], $this->capNote($more))];
             case 'user-activity':
                 $q = $date(ActivityLog::with('user:id,name')->when($r->user_id, fn ($q, $v) => $q->where('user_id', $v))->latest('id'), 'created_at')->limit(self::LOG_CAP + 1)->get();
-                $more = $q->count() > self::LOG_CAP; $q = $q->take(self::LOG_CAP);
+                $more = $q->count() > self::LOG_CAP;
+                $q = $q->take(self::LOG_CAP);
                 $rows = $q->map(fn ($l) => ['at' => $l->created_at->toDateTimeString(), 'user' => $l->user?->name, 'module' => $l->module, 'action' => $l->action, 'description' => $l->description, 'reason' => $l->reason])->all();
 
                 return [$title, [$col('at', 'When'), $col('user', 'User'), $col('module', 'Module'), $col('action', 'Action'), $col('description', 'Description'), $col('reason', 'Reason')], $rows, array_merge([['label' => 'Entries', 'value' => count($rows)]], $this->capNote($more))];
             case 'document-uploads':
                 $q = $date(DocumentFile::with('uploader:id,name')->where('version', 1)->latest('id'), 'created_at')->limit(self::LOG_CAP + 1)->get();
-                $more = $q->count() > self::LOG_CAP; $q = $q->take(self::LOG_CAP);
+                $more = $q->count() > self::LOG_CAP;
+                $q = $q->take(self::LOG_CAP);
                 $rows = $q->map(fn ($d) => ['at' => $d->created_at->toDateTimeString(), 'name' => $d->original_name, 'category' => $d->category, 'size' => round($d->size / 1024).' KB', 'user' => $d->uploader?->name])->all();
 
                 return [$title, [$col('at', 'Uploaded'), $col('name', 'File'), $col('category', 'Category'), $col('size', 'Size'), $col('user', 'By')], $rows, array_merge([['label' => 'Files', 'value' => count($rows)]], $this->capNote($more))];
