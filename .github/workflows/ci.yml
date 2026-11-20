@@ -236,7 +236,7 @@ jobs:
       DB_USERNAME: root
       DB_PASSWORD: root
       # Minimum line coverage (%). Measured value rounded down to the nearest 5; raise it as coverage grows.
-      COVERAGE_MIN: '0'
+      COVERAGE_MIN: '80'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { ref: '${{ env.CHECKOUT_REF }}', persist-credentials: false }
