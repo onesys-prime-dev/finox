@@ -83,8 +83,10 @@ Measured on 50,000 records (dev server, MySQL 8): cheque list 40 ms, search 60â€
 Laravel's scheduler needs one task that runs every minute. Use the XAMPP PHP (it has the `zip` extension the backup needs; the Laragon PHP does not):
 
 ```
-schtasks /Create /SC MINUTE /MO 1 /TN "FINOX Scheduler" /TR "C:\xampp\php\php.exe C:\laragon\www\finox\artisan schedule:run"
+schtasks /Create /SC MINUTE /MO 1 /TN "FINOX Scheduler" /TR "C:\Windows\System32\conhost.exe --headless C:\xampp\php\php.exe C:\laragon\www\finox\artisan schedule:run"
 ```
+
+`conhost --headless` keeps a cmd window from popping up every minute. Don't swap in `php-win.exe`: Laravel then starts `cmd /c stty` and `cmd /c mode CON` with no console, and each one opens a window.
 
 Check with `php artisan schedule:list`; the next backup appears in `storage/app/backups`.
 
