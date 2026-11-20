@@ -62,7 +62,7 @@ export default function ChequeBreakdown({ lines, setLines, amount, payeeId, paye
             {errors.lines && <p className="error mb-2">{errors.lines}</p>}
 
             {lines.length === 0 ? (
-                <p className="rounded-lg bg-slate-50 px-3 py-4 text-center text-sm text-slate-400">No breakdown rows. The advice area will print empty.</p>
+                <p className="rounded-lg bg-slate-50 px-3 py-4 text-center text-sm text-slate-500">No breakdown rows. The advice area will print empty.</p>
             ) : (
                 <div className="space-y-2">
                     {lines.map((l, i) => {

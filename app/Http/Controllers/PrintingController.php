@@ -9,7 +9,9 @@ use App\Models\PrintLog;
 use App\Models\PrintTemplate;
 use App\Models\Receipt;
 use App\Services\PrintingService;
+use App\Support\Settings;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -125,7 +127,7 @@ class PrintingController extends Controller
         return response()->json(['job_id' => $job->id]);
     }
 
-    public function confirm(Request $request, PrintJob $job): \Illuminate\Http\RedirectResponse
+    public function confirm(Request $request, PrintJob $job): RedirectResponse
     {
         $this->authorize('confirm', $job);
         $data = $request->validate(['failed_ids' => 'nullable|array', 'failed_ids.*' => 'integer', 'note' => 'nullable|string|max:1000']);
@@ -172,11 +174,11 @@ class PrintingController extends Controller
                     'count' => 6, 'total' => number_format(1234.5 * 21, 2)],
                 'prepared_by' => $request->user()->name,
             ] : [
-                'org_name' => \App\Support\Settings::get('org_name'), 'org_address' => \App\Support\Settings::get('org_address'),
+                'org_name' => Settings::get('org_name'), 'org_address' => Settings::get('org_address'),
                 'receipt_no' => 'SAMPLE-001', 'date' => now()->toDateString(), 'vendor' => 'Sample Vendor Inc.',
                 'description' => 'Sample description', 'amount_number' => '1,234.56', 'tax' => '₱0.00', 'prepared_by' => $request->user()->name,
             ],
-            'globalOffset' => ['x' => (float) \App\Support\Settings::get('print_offset_x_mm', 0), 'y' => (float) \App\Support\Settings::get('print_offset_y_mm', 0)],
+            'globalOffset' => ['x' => (float) Settings::get('print_offset_x_mm', 0), 'y' => (float) Settings::get('print_offset_y_mm', 0)],
         ]);
     }
 

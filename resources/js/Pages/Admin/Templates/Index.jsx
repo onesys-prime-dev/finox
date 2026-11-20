@@ -23,7 +23,7 @@ export default function Index({ templates }) {
                         <div className="flex flex-wrap gap-2">
                             <Link href={route('admin.templates.edit', t.id)} className="btn-secondary btn-sm"><Icon name="edit" className="h-3.5 w-3.5" /> Edit layout</Link>
                             <Link href={route('printing.calibrate', t.id)} className="btn-secondary btn-sm"><Icon name="ruler" className="h-3.5 w-3.5" /> Calibrate</Link>
-                            {!t.in_use && <button className="btn-ghost btn-sm text-red-600" onClick={() => setDel(t)}><Icon name="trash" className="h-3.5 w-3.5" /></button>}
+                            {!t.in_use && <button className="btn-ghost btn-sm text-red-600" onClick={() => setDel(t)} aria-label={`Delete ${t.name}`} title="Delete template"><Icon name="trash" className="h-3.5 w-3.5" /></button>}
                         </div>
                     </div>))}
             </div>

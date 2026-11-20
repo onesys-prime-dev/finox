@@ -54,7 +54,7 @@ export default function Settings({ settings, categories }) {
                             <button className="btn-secondary" disabled={!cat.trim()} onClick={() => router.post(route('admin.categories.store'), { name: cat }, { preserveScroll: true, onSuccess: () => setCat('') })}>Add</button></div>
                         <div className="flex flex-wrap gap-2">{categories.map((c) => (
                             <span key={c.id} className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm ${c.is_active ? 'border-slate-200 bg-white' : 'border-dashed bg-slate-50 text-slate-400'}`}>{c.name}
-                                <button className="text-xs text-slate-400 hover:text-slate-700" onClick={() => router.put(route('admin.categories.update', c.id), { name: c.name, is_active: !c.is_active }, { preserveScroll: true })}>{c.is_active ? 'Disable' : 'Enable'}</button></span>))}</div>
+                                <button className="text-xs text-slate-500 hover:text-slate-700" onClick={() => router.put(route('admin.categories.update', c.id), { name: c.name, is_active: !c.is_active }, { preserveScroll: true })}>{c.is_active ? 'Disable' : 'Enable'}</button></span>))}</div>
                     </div>
                 </div>
             </div>

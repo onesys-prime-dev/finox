@@ -125,7 +125,7 @@ export default function Form({ cheque, accounts, locked = false, duplicateOf }) 
                     </div>
 
                     <Field label="Amount in words" hint="Generated automatically and cannot be edited.">
-                        <div className="min-h-[2.5rem] rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2 font-mono text-[13px] leading-snug text-slate-700">{words || <span className="text-slate-400">Enter an amount…</span>}</div>
+                        <div className="min-h-[2.5rem] rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-2 font-mono text-[13px] leading-snug text-slate-700">{words || <span className="text-slate-500">Enter an amount…</span>}</div>
                     </Field>
 
                     <div>
@@ -176,7 +176,7 @@ export default function Form({ cheque, accounts, locked = false, duplicateOf }) 
                             {tpl && (
                                 <div className="flex gap-1 rounded-lg bg-slate-100 p-0.5 text-xs font-medium">
                                     {[['cheque', 'Cheque'], ['advice', 'Advice'], ['full', 'Full sheet']].map(([v, l]) => (
-                                        <button key={v} type="button" onClick={() => setView(v)} className={`rounded-md px-2 py-1 ${view === v ? 'bg-white shadow-sm' : 'text-slate-500'}`}>{l}</button>
+                                        <button key={v} type="button" onClick={() => setView(v)} className={`rounded-md px-2 py-1 ${view === v ? 'bg-white shadow-sm' : 'text-slate-600'}`}>{l}</button>
                                     ))}
                                 </div>
                             )}

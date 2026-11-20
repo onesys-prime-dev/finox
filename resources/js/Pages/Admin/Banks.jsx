@@ -30,14 +30,14 @@ export default function Banks({ banks, templates }) {
                                 <div><p className="font-semibold">{b.name} {!b.is_active && <span className="badge ml-1 bg-slate-100 text-slate-600 ring-slate-300">Inactive</span>}</p>{b.remarks && <p className="text-xs text-slate-500">{b.remarks}</p>}</div></div>
                             <div className="flex gap-2"><button className="btn-secondary btn-sm" onClick={() => openBank(b)}><Icon name="edit" className="h-3.5 w-3.5" /> Edit bank</button><button className="btn-primary btn-sm" onClick={() => openAcct(b)}><Icon name="plus" className="h-3.5 w-3.5" /> Add account</button></div>
                         </div>
-                        {b.accounts.length === 0 ? <p className="px-5 py-6 text-center text-sm text-slate-400">No accounts for this bank.</p> : (
+                        {b.accounts.length === 0 ? <p className="px-5 py-6 text-center text-sm text-slate-500">No accounts for this bank.</p> : (
                             <div className="overflow-x-auto"><table className="tbl"><thead><tr><th>Account</th><th>Branch / reference</th><th>Print template</th><th>Starting no.</th><th>Cheques</th><th>Status</th><th className="w-12" /></tr></thead>
                                 <tbody>{b.accounts.map((a) => (
                                     <tr key={a.id}><td><p className="font-medium">{a.account_name}</p><p className="font-mono text-xs text-slate-500">{a.account_number}</p></td>
-                                        <td className="text-slate-600">{a.branch ?? '—'}<p className="text-xs text-slate-400">{a.account_reference}</p></td>
+                                        <td className="text-slate-600">{a.branch ?? '—'}<p className="text-xs text-slate-500">{a.account_reference}</p></td>
                                         <td>{a.template ?? <span className="text-xs font-medium text-amber-700">⚠ None assigned</span>}</td><td className="font-mono text-xs">{a.starting_number ?? '—'}</td><td>{a.cheques_count}</td>
                                         <td>{a.is_active ? <span className="badge bg-emerald-50 text-emerald-700 ring-emerald-200">Active</span> : <span className="badge bg-slate-100 text-slate-600 ring-slate-300">Inactive</span>}</td>
-                                        <td><button className="btn-ghost btn-sm" onClick={() => openAcct(b, a)}><Icon name="edit" className="h-4 w-4" /></button></td></tr>))}</tbody></table></div>)}
+                                        <td><button className="btn-ghost btn-sm" onClick={() => openAcct(b, a)} aria-label={`Edit account ${a.account_name}`} title="Edit account"><Icon name="edit" className="h-4 w-4" /></button></td></tr>))}</tbody></table></div>)}
                     </div>))}
             </div>
 

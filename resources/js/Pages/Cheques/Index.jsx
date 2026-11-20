@@ -47,7 +47,7 @@ export default function Index({ cheques, filters, statuses, accounts, savedFilte
                         <Icon name="search" className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
                         <input className="input pl-9" placeholder="Cheque no., payee, purpose, reference…" value={f.search ?? ''} onChange={(e) => apply({ ...f, search: e.target.value })} />
                     </div>
-                    <select className="input !w-auto" value={f.bank_account_id ?? ''} onChange={(e) => apply({ ...f, bank_account_id: e.target.value }, true)}>
+                    <select aria-label="Filter by bank account" className="input !w-auto" value={f.bank_account_id ?? ''} onChange={(e) => apply({ ...f, bank_account_id: e.target.value }, true)}>
                         <option value="">All accounts</option>{accounts.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}
                     </select>
                     <input type="date" className="input !w-auto" value={f.from ?? ''} onChange={(e) => apply({ ...f, from: e.target.value }, true)} aria-label="From" />

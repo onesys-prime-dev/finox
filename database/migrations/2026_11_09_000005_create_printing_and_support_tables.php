@@ -73,16 +73,16 @@ return new class extends Migration
             $t->timestamps();
         });
 
-        $cat = fn ($p, $c) => DB::getDriverName() === "sqlite" ? "'$p' || $c" : "CONCAT('$p', $c)";
-        DB::statement("DROP VIEW IF EXISTS transaction_register");
+        $cat = fn ($p, $c) => DB::getDriverName() === 'sqlite' ? "'$p' || $c" : "CONCAT('$p', $c)";
+        DB::statement('DROP VIEW IF EXISTS transaction_register');
         DB::statement("CREATE VIEW transaction_register AS
-SELECT 'cheque' AS type, c.id AS record_id, {$cat("CHQ-","c.id")} AS transaction_id,
+SELECT 'cheque' AS type, c.id AS record_id, {$cat('CHQ-', 'c.id')} AS transaction_id,
        c.cheque_number AS reference_number, p.name AS party, c.cheque_date AS transaction_date,
        c.amount AS amount, c.status AS status, c.bank_account_id AS bank_account_id,
        NULL AS category_id, c.created_by AS created_by, c.created_at AS created_at
 FROM cheques c JOIN payees p ON p.id = c.payee_id
 UNION ALL
-SELECT 'receipt', r.id, {$cat("RCP-","r.id")},
+SELECT 'receipt', r.id, {$cat('RCP-', 'r.id')},
        r.receipt_number, p.name, r.receipt_date, r.amount, r.status, NULL,
        r.category_id, r.created_by, r.created_at
 FROM receipts r LEFT JOIN payees p ON p.id = r.payee_id");

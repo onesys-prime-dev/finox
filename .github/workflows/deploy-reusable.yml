@@ -1,0 +1,276 @@
+# Shared deployment logic for staging and production (called by deploy-staging.yml and
+# deploy-production.yml after ci.yml has passed in the same run).
+#
+# Uses only the existing environment secrets (VPS_HOST, VPS_KNOWN_HOSTS, VPS_PRIVATE_KEY,
+# VPS_USERNAME) and variables (DEPLOY_PATH, PHP_BIN, SITE_URL, SSH_PORT, TLS_INSECURE).
+# The server-side steps live in .github/scripts/deploy-remote.sh, shipped inside the artifact.
+name: Deploy (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: GitHub Environment to deploy to (staging or production).
+        type: string
+        required: true
+      ref:
+        description: Full commit SHA being deployed (already tested by ci.yml in this run).
+        type: string
+        required: true
+      artifact:
+        description: Name of the release artifact uploaded by ci.yml in this run.
+        type: string
+        required: true
+      version:
+        description: Release tag (production), empty for staging.
+        type: string
+        default: ''
+      mode:
+        description: deploy, or rollback (an explicit redeploy of an older production tag).
+        type: string
+        default: deploy
+      skip_if_superseded:
+        description: Skip when main has moved past this commit (push-triggered staging deploys).
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    name: Prepare ${{ inputs.environment }} deployment
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      release_id: ${{ steps.id.outputs.release_id }}
+      skip: ${{ steps.superseded.outputs.skip }}
+    steps:
+      - name: Validate inputs
+        env:
+          TARGET_ENV: ${{ inputs.environment }}
+          REF: ${{ inputs.ref }}
+          MODE: ${{ inputs.mode }}
+        run: |
+          [[ "$TARGET_ENV" == staging || "$TARGET_ENV" == production ]] || { echo "::error::Unknown environment '$TARGET_ENV'"; exit 1; }
+          [[ "$REF" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::ref must be a full commit SHA (got '$REF')"; exit 1; }
+          [[ "$MODE" == deploy || "$MODE" == rollback ]] || { echo "::error::mode must be deploy or rollback"; exit 1; }
+      - name: Release id
+        id: id
+        env:
+          REF: ${{ inputs.ref }}
+        run: echo "release_id=$(date -u +%Y%m%dT%H%M%SZ)-${REF:0:7}" >> "$GITHUB_OUTPUT"
+      # Two merges in quick succession run CI in parallel; the older one must not overwrite the newer.
+      - name: Skip if main has moved on
+        id: superseded
+        if: ${{ inputs.skip_if_superseded }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REF: ${{ inputs.ref }}
+        run: |
+          head=$(gh api "repos/${GITHUB_REPOSITORY}/commits/main" --jq .sha)
+          if [[ "$head" != "$REF" ]]; then
+            echo "::notice::main is now at ${head:0:7}; skipping deployment of ${REF:0:7} (the newer run deploys instead)."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  deploy:
+    name: Deploy to ${{ inputs.environment }}
+    needs: prepare
+    if: ${{ needs.prepare.outputs.skip != 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment:
+      name: ${{ inputs.environment }}
+      url: ${{ vars.SITE_URL }}
+    concurrency:
+      # One deployment per environment at a time; never cancel one that is running.
+      group: deploy-${{ inputs.environment }}
+      cancel-in-progress: false
+    env:
+      TARGET_ENV: ${{ inputs.environment }}
+      RELEASE_ID: ${{ needs.prepare.outputs.release_id }}
+      RELEASE_SHA: ${{ inputs.ref }}
+      RELEASE_VERSION: ${{ inputs.version }}
+      DEPLOY_MODE: ${{ inputs.mode }}
+      DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+      PHP_BIN: ${{ vars.PHP_BIN }}
+      SITE_URL: ${{ vars.SITE_URL }}
+      SSH_PORT: ${{ vars.SSH_PORT }}
+      TLS_INSECURE: ${{ vars.TLS_INSECURE }}
+      KEEP_RELEASES: '5'
+    steps:
+      - name: Check environment configuration
+        env:
+          HAS_HOST: ${{ secrets.VPS_HOST != '' }}
+          HAS_USER: ${{ secrets.VPS_USERNAME != '' }}
+          HAS_KEY: ${{ secrets.VPS_PRIVATE_KEY != '' }}
+          HAS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS != '' }}
+        run: |
+          missing=()
+          [[ "$HAS_HOST" == true ]] || missing+=(secret:VPS_HOST)
+          [[ "$HAS_USER" == true ]] || missing+=(secret:VPS_USERNAME)
+          [[ "$HAS_KEY" == true ]] || missing+=(secret:VPS_PRIVATE_KEY)
+          [[ "$HAS_KNOWN_HOSTS" == true ]] || missing+=(secret:VPS_KNOWN_HOSTS)
+          for v in DEPLOY_PATH PHP_BIN SITE_URL; do [[ -n "${!v}" ]] || missing+=("variable:$v"); done
+          if ((${#missing[@]})); then echo "::error::Environment '$TARGET_ENV' is missing: ${missing[*]}"; exit 1; fi
+          [[ -z "$SSH_PORT" || "$SSH_PORT" =~ ^[0-9]+$ ]] || { echo "::error::SSH_PORT must be a number"; exit 1; }
+          [[ -z "$TLS_INSECURE" || "$TLS_INSECURE" == true || "$TLS_INSECURE" == false ]] || { echo "::error::TLS_INSECURE must be true or false"; exit 1; }
+          [[ "$SITE_URL" =~ ^https?:// ]] || { echo "::error::SITE_URL must start with https:// or http://"; exit 1; }
+          [[ "$DEPLOY_PATH" == /* && "$DEPLOY_PATH" == */htdocs/* ]] || { echo "::error::DEPLOY_PATH must be an absolute CloudPanel htdocs path"; exit 1; }
+          if [[ "$TARGET_ENV" == production && "$TLS_INSECURE" == true ]]; then
+            echo "::warning::TLS_INSECURE=true on production - health checks skip certificate verification"
+          fi
+          echo "Deploying ${RELEASE_SHA:0:7} ${RELEASE_VERSION:+($RELEASE_VERSION) }to $TARGET_ENV as release $RELEASE_ID ($DEPLOY_MODE)"
+
+      - name: Download release artifact
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ inputs.artifact }}
+          path: dist
+
+      - name: Verify artifact checksums
+        working-directory: dist
+        run: |
+          sha256sum -c SHA256SUMS
+          ls -lh
+
+      - name: Set up SSH
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USERNAME: ${{ secrets.VPS_USERNAME }}
+          VPS_PRIVATE_KEY: ${{ secrets.VPS_PRIVATE_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          umask 077
+          printf '%s\n' "$VPS_PRIVATE_KEY" > ~/.ssh/deploy_key
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts_deploy
+          cat > ~/.ssh/config <<EOF
+          Host deploy-target
+            HostName ${VPS_HOST}
+            User ${VPS_USERNAME}
+            Port ${SSH_PORT:-22}
+            IdentityFile ~/.ssh/deploy_key
+            IdentitiesOnly yes
+            UserKnownHostsFile ~/.ssh/known_hosts_deploy
+            StrictHostKeyChecking yes
+            BatchMode yes
+            ConnectTimeout 20
+            ServerAliveInterval 15
+            ServerAliveCountMax 4
+          EOF
+          ssh deploy-target true || { echo "::error::SSH connection failed. Check VPS_HOST, SSH_PORT, VPS_USERNAME, VPS_PRIVATE_KEY and that VPS_KNOWN_HOSTS matches the server's host key."; exit 1; }
+          echo "SSH connection OK"
+
+      - name: Upload release to the server
+        id: upload
+        run: |
+          incoming="$DEPLOY_PATH/.deploy/incoming/$RELEASE_ID"
+          echo "INCOMING=$incoming" >> "$GITHUB_ENV"
+          # shellcheck disable=SC2029  # the path is meant to expand on the runner
+          ssh deploy-target "mkdir -p $(printf '%q' "$incoming")"
+          scp -q dist/release.tar.gz dist/deploy-remote.sh dist/SHA256SUMS "deploy-target:$(printf '%q' "$incoming")/"
+          echo "Uploaded to $incoming"
+
+      - name: Deploy on the server
+        id: deploy
+        run: |
+          remote_env=()
+          for v in DEPLOY_PATH PHP_BIN TARGET_ENV RELEASE_ID RELEASE_SHA RELEASE_VERSION DEPLOY_MODE INCOMING KEEP_RELEASES; do
+            remote_env+=("$v=$(printf '%q' "${!v}")")
+          done
+          # shellcheck disable=SC2029
+          ssh deploy-target "env ${remote_env[*]} bash $(printf '%q' "$INCOMING/deploy-remote.sh") deploy" 2>&1 | tee deploy.log
+          grep -q '^DEPLOY_RESULT ' deploy.log
+
+      - name: Verify the live site
+        id: verify
+        run: |
+          curl_opts=(-sS --max-time 20 -o /dev/null -w '%{http_code}')
+          [[ "$TLS_INSECURE" == true ]] && curl_opts+=(-k)
+          base="${SITE_URL%/}"
+
+          echo "::group::1. ${base}/up returns 200"
+          code=000
+          for i in $(seq 1 12); do
+            code=$(curl "${curl_opts[@]}" "${base}/up" || true)
+            [[ "$code" == 200 ]] && break
+            echo "attempt $i: HTTP $code"; sleep 5
+          done
+          [[ "$code" == 200 ]] || { echo "::error::${base}/up returned HTTP $code"; exit 1; }
+          echo "::endgroup::"
+
+          echo "::group::2. ${base}/login renders FINOX"
+          html_opts=(-sS --max-time 20 -o login.html -w '%{http_code}')
+          [[ "$TLS_INSECURE" == true ]] && html_opts+=(-k)
+          code=$(curl "${html_opts[@]}" "${base}/login")
+          [[ "$code" == 200 ]] || { echo "::error::${base}/login returned HTTP $code"; exit 1; }
+          grep -q 'FINOX' login.html || { echo "::error::/login does not contain FINOX (is APP_NAME=FINOX?)"; exit 1; }
+          echo "::endgroup::"
+
+          echo "::group::3. Built assets are served"
+          asset=$(grep -oE '/build/assets/[^"]+\.js' login.html | head -n1 || true)
+          [[ -n "$asset" ]] || { echo "::error::No /build/assets/*.js referenced by /login"; exit 1; }
+          code=$(curl "${curl_opts[@]}" "${base}${asset}")
+          [[ "$code" == 200 ]] || { echo "::error::${asset} returned HTTP $code"; exit 1; }
+          echo "${asset}: 200"
+          echo "::endgroup::"
+
+          echo "::group::4-5. APP_ENV, queue restart and scheduler on the server"
+          # shellcheck disable=SC2029
+          ssh deploy-target "env DEPLOY_PATH=$(printf '%q' "$DEPLOY_PATH") PHP_BIN=$(printf '%q' "$PHP_BIN") TARGET_ENV=$TARGET_ENV bash $(printf '%q' "$INCOMING/deploy-remote.sh") verify"
+          echo "::endgroup::"
+
+      - name: Roll back after a failed deployment
+        id: rollback
+        if: ${{ failure() && steps.upload.outcome == 'success' }}
+        run: |
+          # shellcheck disable=SC2029
+          ssh deploy-target "env DEPLOY_PATH=$(printf '%q' "$DEPLOY_PATH") PHP_BIN=$(printf '%q' "$PHP_BIN") TARGET_ENV=$TARGET_ENV RELEASE_ID=$RELEASE_ID INCOMING=$(printf '%q' "$INCOMING") bash $(printf '%q' "$INCOMING/deploy-remote.sh") rollback" 2>&1 | tee rollback.log
+          # Verify the restored release still answers.
+          opts=(-sS --max-time 20 -o /dev/null -w '%{http_code}'); [[ "$TLS_INSECURE" == true ]] && opts+=(-k)
+          echo "After rollback: ${SITE_URL%/}/up -> HTTP $(curl "${opts[@]}" "${SITE_URL%/}/up" || true)"
+
+      - name: Finalize (mark healthy, remove old releases)
+        run: |
+          # shellcheck disable=SC2029
+          ssh deploy-target "env DEPLOY_PATH=$(printf '%q' "$DEPLOY_PATH") PHP_BIN=$(printf '%q' "$PHP_BIN") TARGET_ENV=$TARGET_ENV KEEP_RELEASES=$KEEP_RELEASES INCOMING=$(printf '%q' "$INCOMING") bash $(printf '%q' "$INCOMING/deploy-remote.sh") finalize"
+
+      - name: Job summary
+        if: ${{ always() }}
+        env:
+          DEPLOY_OUTCOME: ${{ steps.deploy.outcome }}
+          VERIFY_OUTCOME: ${{ steps.verify.outcome }}
+          ROLLBACK_OUTCOME: ${{ steps.rollback.outcome }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          {
+            echo "## Deployment to ${TARGET_ENV}: ${JOB_STATUS}"
+            echo ""
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Commit | \`${RELEASE_SHA}\` |"
+            echo "| Version | ${RELEASE_VERSION:-—} |"
+            echo "| Mode | ${DEPLOY_MODE} |"
+            echo "| Release | \`${RELEASE_ID}\` |"
+            echo "| Site | ${SITE_URL} |"
+            echo "| Deploy step | ${DEPLOY_OUTCOME} |"
+            echo "| Verification | ${VERIFY_OUTCOME} |"
+            echo "| Automatic rollback | ${ROLLBACK_OUTCOME} |"
+            if [[ -f deploy.log ]]; then
+              echo ""
+              echo "<details><summary>Migration output</summary>"
+              echo ""
+              echo '```'
+              sed -n '/Database migrations/,/::endgroup::/p' deploy.log | grep -v '::' | tail -n 40
+              echo '```'
+              echo "</details>"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove SSH key
+        if: ${{ always() }}
+        run: rm -f ~/.ssh/deploy_key ~/.ssh/known_hosts_deploy ~/.ssh/config

@@ -19,7 +19,7 @@ export default function GuestLayout({ children }) {
                         <li>• Release and clearing tracked manually, clearly labelled</li>
                     </ul>
                 </div>
-                <p className="relative text-xs text-slate-500">Internal system · authorised users only</p>
+                <p className="relative text-xs text-slate-400">Internal system · authorised users only</p>
             </div>
             <div className="flex items-center justify-center p-6 sm:p-12">
                 <div className="w-full max-w-sm">{children}</div>

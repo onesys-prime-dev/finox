@@ -2,15 +2,16 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\ReportController;
 use App\Models\BankAccount;
 use App\Models\Cheque;
 use App\Models\DocumentFile;
 use App\Models\Payee;
 use App\Models\PrintTemplate;
-use App\Models\Receipt;
 use App\Models\Role;
 use App\Models\User;
 use App\Services\ChequeService;
+use App\Services\DocumentService;
 use App\Services\ReceiptService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -67,7 +68,7 @@ class FullSystemTest extends TestCase
         $receipt = app(ReceiptService::class)->create([
             'receipt_number' => 'FS-1', 'receipt_date' => now()->toDateString(), 'payee_id' => Payee::first()->id, 'amount' => '250',
         ], $admin, record: true);
-        $doc = DocumentFile::first() ?? app(\App\Services\DocumentService::class)->store(
+        $doc = DocumentFile::first() ?? app(DocumentService::class)->store(
             UploadedFile::fake()->createWithContent('a.pdf', "%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF"), 'other', $draft, $admin);
 
         return compact('admin', 'draft', 'receipt', 'doc');
@@ -122,7 +123,7 @@ class FullSystemTest extends TestCase
     public function test_every_report_for_every_role(): void
     {
         $this->seedData();
-        $reports = array_keys((new \ReflectionClass(\App\Http\Controllers\ReportController::class))->getReflectionConstant('REPORTS')->getValue());
+        $reports = array_keys((new \ReflectionClass(ReportController::class))->getReflectionConstant('REPORTS')->getValue());
         foreach (self::ROLES as $role) {
             $user = User::factory()->create(['role_id' => Role::where('name', $role)->value('id')]);
             foreach ($reports as $k) {

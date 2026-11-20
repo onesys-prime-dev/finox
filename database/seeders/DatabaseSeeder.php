@@ -8,6 +8,7 @@ use App\Models\PrintTemplate;
 use App\Models\ReceiptCategory;
 use App\Models\Role;
 use App\Models\User;
+use App\Support\BdoAdviceLayout;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Storage;
 
@@ -70,13 +71,13 @@ class DatabaseSeeder extends Seeder
         PrintTemplate::firstOrCreate(['name' => 'BDO Corporate Check Printing (3-part)'], [
             'kind' => 'cheque', 'paper_width_mm' => 200, 'paper_height_mm' => 280, 'background_path' => $bg,
             'notes' => 'Cheque no., account details and MICR are pre-printed and are never printed by FINOX.',
-            'layout' => ['preview_crop' => ['top' => 205, 'height' => 75], 'advice_crop' => \App\Support\BdoAdviceLayout::CROP, 'fields' => [
+            'layout' => ['preview_crop' => ['top' => 205, 'height' => 75], 'advice_crop' => BdoAdviceLayout::CROP, 'fields' => [
                 $f('date', 'date', 152, 214.6, 45, ['format' => 'date_segmented', 'font_size' => 12,
                     'char_x' => [154.4, 159.6, 167.4, 172.4, 179.2, 184.2, 189.2, 194.2]]),
                 $f('payee', 'payee_line', 30, 223.4, 108, ['font_size' => 11, 'max_lines' => 1]),
                 $f('amount', 'amount_number', 146, 223.8, 49, ['align' => 'left', 'font_size' => 12, 'format' => 'amount_stars']),
                 $f('words', 'amount_words', 22, 231.4, 174, ['font_size' => 9, 'max_lines' => 2]),
-                ...\App\Support\BdoAdviceLayout::fields(),
+                ...BdoAdviceLayout::fields(),
             ]],
         ]);
 

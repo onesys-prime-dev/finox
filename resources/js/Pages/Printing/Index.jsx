@@ -130,7 +130,7 @@ export default function Index({ category, ready, awaiting, failed, accounts, ban
                         <tbody>
                             {rows.map((r) => (
                                 <tr key={r.id} className={`cursor-pointer ${sel.includes(r.id) ? 'bg-brand-50/60' : 'hover:bg-slate-50'}`} onClick={() => !r.blocked && toggle(r.id)}>
-                                    <td><input type="checkbox" disabled={!!r.blocked} className="rounded border-slate-300 text-brand-600" checked={sel.includes(r.id)} onChange={() => toggle(r.id)} onClick={(e) => e.stopPropagation()} /></td>
+                                    <td><input type="checkbox" disabled={!!r.blocked} className="rounded border-slate-300 text-brand-600" checked={sel.includes(r.id)} onChange={() => toggle(r.id)} onClick={(e) => e.stopPropagation()} aria-label={`Select ${r.label}`} /></td>
                                     <td className="font-mono text-[13px] font-medium">{r.label}</td>
                                     <td className="whitespace-nowrap text-slate-600">{fmt.date(r.date)}</td>
                                     <td className="max-w-[16rem] truncate">{r.party}</td>

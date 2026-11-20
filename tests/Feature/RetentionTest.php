@@ -2,8 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Models\ActivityLog;
 use App\Models\DocumentFile;
+use App\Services\DocumentService;
 use App\Support\Settings;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -19,9 +19,9 @@ class RetentionTest extends TestCase
     {
         Storage::fake('local');
         $admin = $this->userWithRole('admin');
-        $new = app(\App\Services\DocumentService::class)->store(
+        $new = app(DocumentService::class)->store(
             UploadedFile::fake()->createWithContent('new.pdf', "%PDF-1.4\n1 0 obj<<>>endobj\n%%EOF"), 'other', null, $admin);
-        $old = app(\App\Services\DocumentService::class)->store(
+        $old = app(DocumentService::class)->store(
             UploadedFile::fake()->createWithContent('old.pdf', "%PDF-1.4\n1 0 obj<<>>endobj\n%%EOF"), 'other', null, $admin);
         DocumentFile::whereKey($old->id)->update(['created_at' => now()->subYears(11)]);
         \DB::table('activity_logs')->insert(['user_id' => $admin->id, 'module' => 'test', 'action' => 'old.entry', 'description' => 'ancient entry',

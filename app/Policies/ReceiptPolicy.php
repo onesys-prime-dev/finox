@@ -29,6 +29,7 @@ class ReceiptPolicy
         if (! $u->hasPermission('receipts.edit') || ! $this->view($u, $r) || ! $r->isEditable()) {
             return false;
         }
+
         // Encoders may only edit their own drafts/recorded; verified ones need finance rights.
         return $r->status !== ReceiptStatus::Verified || $u->hasPermission('receipts.verify');
     }
