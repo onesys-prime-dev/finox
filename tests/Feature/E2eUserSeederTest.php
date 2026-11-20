@@ -31,15 +31,19 @@ class E2eUserSeederTest extends TestCase
         }
     }
 
-    public function test_encoder_owns_cheque_one_after_demo_data(): void
+    public function test_encoder_owns_only_the_first_demo_cheque(): void
     {
         $this->seed(DatabaseSeeder::class);
         $this->seed(DemoSeeder::class);
         $this->seed(E2eUserSeeder::class);
 
+        // Ids are not assumed: MySQL does not reset AUTO_INCREMENT when RefreshDatabase rolls back.
+        // On the freshly migrated e2e database the first cheque is #1 (what the Playwright specs open).
         $encoder = User::where('email', 'e2e-encoder@finox.test')->sole();
-        $this->assertSame($encoder->id, Cheque::find(1)->created_by);
-        $this->assertNotSame($encoder->id, Cheque::find(2)->created_by);
+        [$first, $second] = Cheque::query()->orderBy('id')->limit(2)->get()->all();
+        $this->assertSame($encoder->id, $first->created_by);
+        $this->assertNotSame($encoder->id, $second->created_by);
+        $this->assertSame(1, Cheque::where('created_by', $encoder->id)->count());
     }
 
     public function test_password_matches_the_playwright_helper(): void

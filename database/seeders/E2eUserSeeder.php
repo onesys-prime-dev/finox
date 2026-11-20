@@ -42,8 +42,9 @@ class E2eUserSeeder extends Seeder
             ]);
         }
 
-        // Fixture the specs rely on: the e2e encoder owns cheque #1 (and nothing else from the demo data),
-        // so it can open /cheques/1 but gets 403 on /cheques/2. Run after DemoSeeder.
-        Cheque::whereKey(1)->update(['created_by' => $users['encoder']->id]);
+        // Fixture the specs rely on: the e2e encoder owns the first demo cheque (and nothing else from the
+        // demo data). On the freshly migrated e2e database that is cheque #1, so the encoder can open
+        // /cheques/1 but gets 403 on /cheques/2. Run after DemoSeeder.
+        Cheque::query()->orderBy('id')->limit(1)->update(['created_by' => $users['encoder']->id]);
     }
 }
