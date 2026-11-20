@@ -2,8 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Models\Cheque;
 use App\Models\User;
 use Database\Seeders\DatabaseSeeder;
+use Database\Seeders\DemoSeeder;
 use Database\Seeders\E2eUserSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
@@ -27,6 +29,17 @@ class E2eUserSeederTest extends TestCase
             $this->assertFalse((bool) $user->must_change_password);
             $this->assertTrue(Hash::check(E2eUserSeeder::PASSWORD, $user->password));
         }
+    }
+
+    public function test_encoder_owns_cheque_one_after_demo_data(): void
+    {
+        $this->seed(DatabaseSeeder::class);
+        $this->seed(DemoSeeder::class);
+        $this->seed(E2eUserSeeder::class);
+
+        $encoder = User::where('email', 'e2e-encoder@finox.test')->sole();
+        $this->assertSame($encoder->id, Cheque::find(1)->created_by);
+        $this->assertNotSame($encoder->id, Cheque::find(2)->created_by);
     }
 
     public function test_password_matches_the_playwright_helper(): void
