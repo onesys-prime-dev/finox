@@ -362,8 +362,10 @@ jobs:
         with: { no-dev: 'true' }
       - name: Production-like .env
         run: |
+          # No database in this job: the cache store is "array" here (schedule:list takes a cache lock).
+          # The deployment's verify step runs schedule:list on the server with the real database cache.
           bash .github/scripts/write-env.sh .env APP_ENV=production APP_DEBUG=false LOG_LEVEL=warning \
-            DB_CONNECTION=mysql SESSION_SECURE_COOKIE=true
+            DB_CONNECTION=mysql SESSION_SECURE_COOKIE=true CACHE_STORE=array
           php artisan key:generate --no-interaction --force
       - name: env() is only called inside config/ (it returns null once config is cached)
         run: |
