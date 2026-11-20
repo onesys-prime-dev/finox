@@ -50,7 +50,8 @@ export default [
         rules: { ...shared, 'no-control-regex': 'off' },
     },
     {
-        files: ['*.config.js'],
+        // Build/tool config and CI helper scripts run in Node.
+        files: ['*.config.js', '.github/scripts/**/*.{js,mjs}'],
         languageOptions: { ecmaVersion: 'latest', sourceType: 'module', globals: { ...globals.node } },
     },
 ];
