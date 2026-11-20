@@ -141,11 +141,16 @@ ssh-keygen -t ed25519 -N '' -C 'github-actions finox production' -f finox-produc
 1. In CloudPanel, *Site → SSH/FTP → SSH Keys* (or the site user's `~/.ssh/authorized_keys`),
    add the `.pub` key to the matching site user.
 2. Collect the server host key and **check its fingerprint** against the server console
-   (`ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub` on the VPS):
+   (`ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub` on the VPS); the two `SHA256:…` values
+   must be identical:
    ```bash
    ssh-keyscan -p <port> -t ed25519 <host> > known_hosts
    ssh-keygen -lf known_hosts
    ```
+   * Scan exactly the value you put in `VPS_HOST` (IP *or* hostname — SSH matches it literally).
+   * On a port other than 22 the line starts with `[<host>]:<port> ssh-ed25519 …`; keep that form.
+   * `VPS_KNOWN_HOSTS` is that one `ssh-ed25519 …` line. Staging and production share the VPS,
+     so both environments use the same line (as long as `VPS_HOST`/`SSH_PORT` are the same).
 3. Put the values into the GitHub environment (*Settings → Environments → staging/production*):
    `VPS_PRIVATE_KEY` = private key file contents, `VPS_KNOWN_HOSTS` = the `known_hosts` line,
    `VPS_HOST`, `VPS_USERNAME` = that site's user, plus the variables in [CI-CD.md](CI-CD.md#4-environment-configuration).
