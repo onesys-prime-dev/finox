@@ -23,6 +23,8 @@ class ProfileController extends Controller
         $user = $request->user();
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            // ignore() receives the signed-in user's own id, not request input.
+            // nosemgrep: php.laravel.security.laravel-unsafe-validator.laravel-unsafe-validator
             'email' => ['required', 'string', 'lowercase', 'email', 'max:255', Rule::unique('users')->ignore($user->id)],
         ]);
         $user->fill($data)->save();

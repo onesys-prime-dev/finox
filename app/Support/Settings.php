@@ -32,6 +32,8 @@ class Settings
     {
         $stored = Cache::rememberForever('finox.settings', function () {
             try {
+                // Eloquent query, no shell command is executed (Semgrep exec-use false positive).
+                // nosemgrep: php.lang.security.exec-use.exec-use
                 return SystemSetting::query()->pluck('value', 'key')
                     ->map(fn ($v) => json_decode($v, true))->all();
             } catch (\Throwable) {
@@ -55,6 +57,8 @@ class Settings
 
     public static function set(string $key, mixed $value): void
     {
+        // Eloquent query, no shell command is executed (Semgrep exec-use false positive).
+        // nosemgrep: php.lang.security.exec-use.exec-use
         SystemSetting::updateOrCreate(['key' => $key], ['value' => json_encode($value)]);
         self::flush();
     }

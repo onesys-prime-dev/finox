@@ -29,6 +29,8 @@ class DashboardController extends Controller
         $bank = $request->bank_account_id ?: null;
 
         $filtered = (bool) ($from || $to || $bank);
+        // md5 only shortens the filter values into a cache key; no security property depends on it.
+        // nosemgrep: php.lang.security.weak-crypto.weak-crypto
         $key = 'finox.dash.'.$u->id.'.'.md5(json_encode([$from, $to, $bank]));
         $stats = Cache::remember($key, $filtered ? 30 : 120, fn () => $this->stats($u, $from, $to, $bank));
 
