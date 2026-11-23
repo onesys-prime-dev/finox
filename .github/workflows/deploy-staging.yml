@@ -69,3 +69,6 @@ jobs:
       ref: ${{ needs.resolve.outputs.sha }}
       artifact: ${{ needs.ci.outputs.artifact }}
       skip_if_superseded: ${{ github.event_name == 'push' }}
+    # Required: a reusable workflow only sees secrets its caller passes. "inherit" makes the
+    # staging environment's VPS_* secrets available to the job that declares environment: staging.
+    secrets: inherit

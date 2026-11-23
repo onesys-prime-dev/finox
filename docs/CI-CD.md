@@ -226,7 +226,7 @@ Artifacts (bottom of the run page) hold reports.
 | E2E | Page error, flow regression, accessibility violation | Download the `e2e-report` artifact, open `playwright-report/index.html` and the traces (`npx playwright show-trace`) |
 | Performance | A page above its budget | Look for missing eager loading / indexes in the slow page; a single noisy run can be re-run |
 | CI gate | One of the above | Fix that job |
-| Deploy: *Check environment configuration* | Missing/invalid secret or variable | Set it in *Settings → Environments* |
+| Deploy: *Check environment configuration* | Missing/invalid secret or variable | Set it in *Settings → Environments*. If the secrets **are** set but still reported missing, the calling workflow's `deploy` job lost `secrets: inherit` (a reusable workflow only sees secrets its caller passes, environment secrets included) |
 | Deploy: *Set up SSH* | Wrong host/port/user/key, or host key mismatch | Re-check section 4; never disable strict host checking |
 | Deploy: *Deploy on the server* — preflight | `.env` missing/wrong `APP_ENV`, `APP_DEBUG=true` in production, real `public/` directory, disk full, wrong PHP | The message says which; fix on the server ([SERVER-SETUP.md](SERVER-SETUP.md)) and re-run the job |
 | Deploy — `finox:backup failed` | `mysqldump` missing or the DB user lacks `PROCESS` | SERVER-SETUP.md §2 |
