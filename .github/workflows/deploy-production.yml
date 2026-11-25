@@ -1,0 +1,150 @@
+# Production deployment, triggered by pushing an annotated SemVer tag vMAJOR.MINOR.PATCH
+# (e.g. v1.4.0) that points to a commit on main which is already deployed to staging.
+#
+# Order: validate the release -> full CI gate on the tagged commit -> approval (production
+# environment reviewers) -> deploy -> GitHub Release.
+#
+# Rollback: run this workflow manually with "Use workflow from" set to an OLDER tag, and type
+# that tag into "confirm_tag". CI still runs; only the "newer version" checks are skipped.
+name: Deploy production
+
+on:
+  push:
+    tags:
+      # Pre-release tags such as v1.3.0-rc.1 do not match and never deploy to production.
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
+    inputs:
+      confirm_tag:
+        description: Rollback - type the tag selected in "Use workflow from" (e.g. v1.2.3) to confirm.
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate-release:
+    name: Validate release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      deployments: read
+    outputs:
+      tag: ${{ steps.checks.outputs.tag }}
+      sha: ${{ steps.checks.outputs.sha }}
+      mode: ${{ steps.checks.outputs.mode }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { fetch-depth: 0, persist-credentials: false }
+      - name: Release checks
+        id: checks
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CONFIRM_TAG: ${{ inputs.confirm_tag }}
+        run: |
+          fail() { echo "::error::$*"; exit 1; }
+          [[ "$GITHUB_REF_TYPE" == tag ]] || fail "Production deploys only from a tag. For a rollback, choose the tag in 'Use workflow from' (selected: $GITHUB_REF)."
+          tag="$GITHUB_REF_NAME"
+          mode=deploy
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
+            mode=rollback
+            [[ "$CONFIRM_TAG" == "$tag" ]] || fail "confirm_tag '$CONFIRM_TAG' does not match the selected tag '$tag'"
+          fi
+
+          echo "::group::1. Tag format (vMAJOR.MINOR.PATCH)"
+          semver='^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'
+          [[ "$tag" =~ $semver ]] || fail "Tag '$tag' is not vMAJOR.MINOR.PATCH (no leading zeros, no suffix)"
+          echo "$tag OK"; echo "::endgroup::"
+
+          # Make sure the real tag object is present (not a peeled copy).
+          git fetch --force --no-tags origin "refs/tags/${tag}:refs/tags/${tag}" "+refs/heads/main:refs/remotes/origin/main"
+          sha=$(git rev-parse "refs/tags/${tag}^{commit}")
+
+          echo "::group::2. Tagged commit is on main"
+          git merge-base --is-ancestor "$sha" origin/main || fail "$tag points to ${sha:0:7}, which is not on main. Tag a commit that was merged into main."
+          echo "${sha:0:7} is on main"; echo "::endgroup::"
+
+          echo "::group::3. Version is higher than every other release tag"
+          if [[ "$mode" == deploy ]]; then
+            highest=$(git tag -l 'v*' | grep -E "$semver" | grep -vxF "$tag" | sort -V | tail -n1 || true)
+            if [[ -n "$highest" ]]; then
+              top=$(printf '%s\n%s\n' "${highest#v}" "${tag#v}" | sort -V | tail -n1)
+              [[ "$top" == "${tag#v}" && "$highest" != "$tag" ]] || fail "$tag is not higher than the existing $highest. Use a new, higher version (or the rollback dispatch to go back)."
+              echo "$tag > $highest"
+            else
+              echo "First release tag"
+            fi
+          else
+            echo "Skipped (rollback to $tag)"
+          fi
+          echo "::endgroup::"
+
+          echo "::group::4. Tag is annotated"
+          [[ "$(git cat-file -t "refs/tags/${tag}")" == tag ]] || fail "$tag is a lightweight tag. Delete it and create an annotated one: git tag -a $tag -m 'Release $tag'"
+          git for-each-ref --format='Tagger: %(taggername) %(taggerdate:iso)%0aMessage: %(contents:subject)' "refs/tags/${tag}"
+          echo "::endgroup::"
+
+          echo "::group::6. Commit was deployed successfully to staging"
+          ok=false
+          for id in $(gh api "repos/${GITHUB_REPOSITORY}/deployments?environment=staging&sha=${sha}&per_page=100" --jq '.[].id'); do
+            if gh api "repos/${GITHUB_REPOSITORY}/deployments/${id}/statuses?per_page=100" --jq '[.[].state] | index("success") != null' | grep -qx true; then ok=true; break; fi
+          done
+          [[ "$ok" == true ]] || fail "${sha:0:7} has never been deployed successfully to staging. Merge to main, wait for the staging deployment, then tag."
+          echo "Staging ran ${sha:0:7} successfully"; echo "::endgroup::"
+          echo "(Check 5, the full CI gate on ${sha:0:7}, runs next.)"
+
+          {
+            echo "tag=$tag"
+            echo "sha=$sha"
+            echo "mode=$mode"
+          } >> "$GITHUB_OUTPUT"
+
+  ci:
+    name: CI
+    needs: validate-release
+    permissions:
+      contents: read
+      pull-requests: read
+    uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ needs.validate-release.outputs.sha }}
+    secrets:
+      GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+
+  deploy:
+    name: Production
+    needs: [validate-release, ci]
+    permissions:
+      contents: read
+    uses: ./.github/workflows/deploy-reusable.yml
+    with:
+      environment: production
+      ref: ${{ needs.validate-release.outputs.sha }}
+      artifact: ${{ needs.ci.outputs.artifact }}
+      version: ${{ needs.validate-release.outputs.tag }}
+      mode: ${{ needs.validate-release.outputs.mode }}
+    # Required: a reusable workflow only sees secrets its caller passes. "inherit" makes the
+    # production environment's VPS_* secrets available to the job that declares environment: production.
+    secrets: inherit
+
+  github-release:
+    name: GitHub Release
+    needs: [validate-release, deploy]
+    if: ${{ github.event_name == 'push' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - name: Create release with generated notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.validate-release.outputs.tag }}
+        run: |
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "Release $TAG already exists"
+          else
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes --title "$TAG"
+          fi

@@ -29,6 +29,7 @@ class ReceiptPolicy
         if (! $u->hasPermission('receipts.edit') || ! $this->view($u, $r) || ! $r->isEditable()) {
             return false;
         }
+
         // Encoders may only edit their own drafts/recorded; verified ones need finance rights.
         return $r->status !== ReceiptStatus::Verified || $u->hasPermission('receipts.verify');
     }
@@ -51,7 +52,7 @@ class ReceiptPolicy
     /** Take an unfinished draft out of the intake queue (whoever may edit it; no cancel permission needed). */
     public function discard(User $u, Receipt $r): bool
     {
-        return $r->status === ReceiptStatus::Draft && $this->update($u, $r);
+        return $r->isDraft() && $this->update($u, $r);
     }
 
     public function cancel(User $u, Receipt $r): bool

@@ -72,7 +72,7 @@ export default function AuthenticatedLayout({ children }) {
                         const items = n.items.filter((x) => can(x.any));
                         return items.length ? (
                             <div key={i} className="pt-5">
-                                <p className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">{n.section}</p>
+                                <p className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">{n.section}</p>
                                 {items.map((x) => <Item key={x.route} it={x} />)}
                             </div>
                         ) : null;

@@ -38,8 +38,8 @@ export default function Show({ report, title, columns, rows, summary, filters, a
                     <input className="input !w-64" placeholder="OR / invoice no., vendor, particulars…" aria-label="Search" defaultValue={f.q ?? ''}
                         onKeyDown={(e) => e.key === 'Enter' && go({ ...f, q: e.currentTarget.value })} onBlur={(e) => e.target.value !== (f.q ?? '') && go({ ...f, q: e.target.value })} />
                 )}
-                {isChequeReport && <select className="input !w-auto" value={f.bank_account_id ?? ''} onChange={(e) => go({ ...f, bank_account_id: e.target.value })}><option value="">All bank accounts</option>{accounts.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}</select>}
-                <select className="input !w-auto" value={f.user_id ?? ''} onChange={(e) => go({ ...f, user_id: e.target.value })}><option value="">Any user</option>{users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}</select>
+                {isChequeReport && <select aria-label="Filter by bank account" className="input !w-auto" value={f.bank_account_id ?? ''} onChange={(e) => go({ ...f, bank_account_id: e.target.value })}><option value="">All bank accounts</option>{accounts.map((a) => <option key={a.id} value={a.id}>{a.label}</option>)}</select>}
+                <select aria-label="Filter by user" className="input !w-auto" value={f.user_id ?? ''} onChange={(e) => go({ ...f, user_id: e.target.value })}><option value="">Any user</option>{users.map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}</select>
                 {Object.values(f).some(Boolean) && <button className="btn-ghost btn-sm" onClick={() => go({})}>Clear</button>}
             </div></div>
 

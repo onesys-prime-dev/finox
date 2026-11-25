@@ -32,7 +32,7 @@ export default function Index({ receipts, filters, statuses, categories, savedFi
                 <div className="flex flex-wrap items-center gap-2 p-4">
                     <div className="relative min-w-[14rem] flex-1"><Icon name="search" className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
                         <input className="input pl-9" placeholder="Receipt no., vendor, description, reference…" value={f.search ?? ''} onChange={(e) => apply({ ...f, search: e.target.value })} /></div>
-                    <select className="input !w-auto" value={f.category_id ?? ''} onChange={(e) => apply({ ...f, category_id: e.target.value }, true)}><option value="">All categories</option>{categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
+                    <select aria-label="Filter by category" className="input !w-auto" value={f.category_id ?? ''} onChange={(e) => apply({ ...f, category_id: e.target.value }, true)}><option value="">All categories</option>{categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
                     <input type="date" className="input !w-auto" value={f.from ?? ''} onChange={(e) => apply({ ...f, from: e.target.value }, true)} aria-label="From" />
                     <input type="date" className="input !w-auto" value={f.to ?? ''} onChange={(e) => apply({ ...f, to: e.target.value }, true)} aria-label="To" />
                     <label className="flex items-center gap-1.5 text-sm text-slate-600"><input type="checkbox" className="rounded border-slate-300 text-brand-600" checked={!!f.mine} onChange={(e) => apply({ ...f, mine: e.target.checked ? 1 : '' }, true)} /> Mine</label>
@@ -50,7 +50,7 @@ export default function Index({ receipts, filters, statuses, categories, savedFi
                         <tbody>
                             {rows.map((r) => (
                                 <tr key={r.id} className="row-link" onClick={() => router.visit(route('receipts.show', r.id))}>
-                                    <td className="font-mono text-[13px] font-medium">{r.receipt_number ?? <span className="font-sans italic text-slate-400">#{r.id} (no number yet)</span>}</td>
+                                    <td className="font-mono text-[13px] font-medium">{r.receipt_number ?? <span className="font-sans italic text-slate-500">#{r.id} (no number yet)</span>}</td>
                                     <td className="whitespace-nowrap text-slate-600">{fmt.date(r.receipt_date)}</td>
                                     <td className="max-w-[16rem] truncate font-medium">{r.payee ?? '—'}</td>
                                     <td className="text-slate-600">{r.category ?? '—'}</td>

@@ -1,0 +1,133 @@
+{
+  "e2e/flows.spec.js": {
+    "no-unused-vars": {
+      "count": 1
+    }
+  },
+  "e2e/walkthrough.spec.js": {
+    "no-unused-vars": {
+      "count": 4
+    }
+  },
+  "resources/js/Components/ChequeBreakdown.jsx": {
+    "react/jsx-no-target-blank": {
+      "count": 1
+    }
+  },
+  "resources/js/Components/FilterBar.jsx": {
+    "jsx-a11y/click-events-have-key-events": {
+      "count": 1
+    },
+    "jsx-a11y/no-static-element-interactions": {
+      "count": 1
+    }
+  },
+  "resources/js/Components/PayeeSelect.jsx": {
+    "jsx-a11y/no-noninteractive-element-interactions": {
+      "count": 1
+    },
+    "jsx-a11y/role-has-required-aria-props": {
+      "count": 1
+    }
+  },
+  "resources/js/Components/ReceiptFields.jsx": {
+    "jsx-a11y/no-noninteractive-element-interactions": {
+      "count": 1
+    },
+    "react/jsx-no-target-blank": {
+      "count": 2
+    }
+  },
+  "resources/js/Components/ui.jsx": {
+    "jsx-a11y/click-events-have-key-events": {
+      "count": 1
+    },
+    "jsx-a11y/no-static-element-interactions": {
+      "count": 1
+    }
+  },
+  "resources/js/Layouts/AuthenticatedLayout.jsx": {
+    "jsx-a11y/click-events-have-key-events": {
+      "count": 1
+    },
+    "jsx-a11y/no-static-element-interactions": {
+      "count": 1
+    }
+  },
+  "resources/js/Pages/Admin/Banks.jsx": {
+    "no-unused-vars": {
+      "count": 1
+    }
+  },
+  "resources/js/Pages/Admin/Roles.jsx": {
+    "no-unused-vars": {
+      "count": 1
+    }
+  },
+  "resources/js/Pages/Admin/Templates/Edit.jsx": {
+    "no-unused-vars": {
+      "count": 1
+    },
+    "react/no-unescaped-entities": {
+      "count": 2
+    }
+  },
+  "resources/js/Pages/Auth/ChangePassword.jsx": {
+    "no-unused-vars": {
+      "count": 1
+    }
+  },
+  "resources/js/Pages/Cheques/Form.jsx": {
+    "jsx-a11y/label-has-associated-control": {
+      "count": 1
+    },
+    "jsx-a11y/no-noninteractive-element-interactions": {
+      "count": 1
+    },
+    "no-unused-vars": {
+      "count": 1
+    },
+    "react/jsx-no-target-blank": {
+      "count": 1
+    }
+  },
+  "resources/js/Pages/Cheques/Index.jsx": {
+    "no-unused-vars": {
+      "count": 2
+    }
+  },
+  "resources/js/Pages/Documents/Index.jsx": {
+    "no-unused-vars": {
+      "count": 1
+    }
+  },
+  "resources/js/Pages/Printing/Calibrate.jsx": {
+    "no-unused-vars": {
+      "count": 2
+    }
+  },
+  "resources/js/Pages/Printing/History.jsx": {
+    "no-unused-vars": {
+      "count": 1
+    }
+  },
+  "resources/js/Pages/Printing/Index.jsx": {
+    "jsx-a11y/click-events-have-key-events": {
+      "count": 1
+    },
+    "jsx-a11y/no-static-element-interactions": {
+      "count": 1
+    },
+    "no-unused-vars": {
+      "count": 1
+    },
+    "react/jsx-no-target-blank": {
+      "count": 1
+    }
+  },
+  "resources/js/Pages/Receipts/Index.jsx": {
+    "no-unused-vars": {
+      "count": 1
+    }
+  }
+}

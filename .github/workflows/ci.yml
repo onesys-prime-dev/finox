@@ -1,0 +1,562 @@
+# FINOX CI gate.
+#
+# Runs on every pull request targeting main, and is called (workflow_call) as the first
+# stage of deploy-staging.yml and deploy-production.yml, so every deployed commit has
+# passed the full gate in the same run. The single required status check is "CI gate".
+# See docs/CI-CD.md for what each job does and how to reproduce it locally.
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+    # "edited" is deliberately not used: a title edit would produce a skipped (= passing) gate.
+    # After retargeting a PR to main, close and reopen it to re-run CI.
+    types: [opened, synchronize, reopened]
+  workflow_call:
+    inputs:
+      ref:
+        description: Full commit SHA to test and build the release artifact from.
+        type: string
+        required: true
+    secrets:
+      GITLEAKS_LICENSE:
+        description: gitleaks-action license (repository secret).
+        required: true
+    outputs:
+      artifact:
+        description: Name of the release artifact uploaded by this run.
+        value: ${{ jobs.build.outputs.artifact }}
+
+permissions:
+  contents: read
+
+concurrency:
+  # A new push to a PR cancels that PR's previous run. Runs called by a deployment are never cancelled here.
+  group: ${{ github.event_name == 'pull_request' && format('ci-pr-{0}', github.event.pull_request.number) || format('ci-run-{0}-{1}', github.run_id, github.run_attempt) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CHECKOUT_REF: ${{ inputs.ref || github.sha }}
+  PHP_VERSION: '8.5'
+  # The MySQL service image (mysql:8.4) is written out in each job because services cannot
+  # read env; keep it in step with the MySQL version on the VPS.
+
+jobs:
+  php-style:
+    name: PHP style (Pint) and composer.json
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { ref: '${{ env.CHECKOUT_REF }}', persist-credentials: false }
+      - uses: ./.github/actions/setup-php-app
+      - name: Validate composer.json and composer.lock
+        run: composer validate --strict --no-interaction
+      - name: Pint (check only)
+        run: vendor/bin/pint --test -v
+
+  phpstan:
+    name: Static analysis, complexity and architecture (PHPStan)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { ref: '${{ env.CHECKOUT_REF }}', persist-credentials: false }
+      - uses: ./.github/actions/setup-php-app
+      - name: Prepare .env
+        run: cp .env.example .env && php artisan key:generate --no-interaction
+      - name: PHPStan (Larastan level 5, cognitive complexity, phpat)
+        run: vendor/bin/phpstan analyse --no-progress --memory-limit=2G --error-format=github
+
+  eslint:
+    name: JavaScript lint (ESLint)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { ref: '${{ env.CHECKOUT_REF }}', persist-credentials: false }
+      - uses: ./.github/actions/setup-node-app
+      - name: ESLint
+        run: npm run lint
+
+  dependency-audit:
+    name: Dependency audit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { ref: '${{ env.CHECKOUT_REF }}', persist-credentials: false }
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with: { php-version: '${{ env.PHP_VERSION }}', coverage: none, tools: 'composer:v2' }
+      - name: Composer audit (security advisories)
+        run: composer audit --locked --no-interaction
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with: { node-version: '24' }
+      - name: npm audit (high and critical)
+        run: npm audit --audit-level=high
+
+  secret-scan:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { ref: '${{ env.CHECKOUT_REF }}', fetch-depth: 0, persist-credentials: false }
+      # gitleaks-action scans the PR's commits (pull_request) or the pushed commits (push to main).
+      # On tag pushes it finds no commits and would pass without scanning, so it is skipped there.
+      - name: gitleaks-action
+        if: ${{ !(github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')) }}
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+          GITLEAKS_ENABLE_COMMENTS: 'false'
+      # Every non-PR run (i.e. every deployment) also scans the full git history with the gitleaks CLI.
+      - name: gitleaks CLI (full history)
+        if: ${{ github.event_name != 'pull_request' }}
+        env:
+          GITLEAKS_VERSION: 8.30.1
+          GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+        run: |
+          curl -fsSL -o gitleaks.tar.gz "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  gitleaks.tar.gz" | sha256sum -c -
+          tar -xzf gitleaks.tar.gz -C "$RUNNER_TEMP" gitleaks
+          "$RUNNER_TEMP/gitleaks" git --redact --no-banner --exit-code 1 --verbose .
+
+  sast:
+    name: Security static analysis (Semgrep)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      SEMGREP_IMAGE: semgrep/semgrep:1.186.0@sha256:6e1b04340e60e910fbb4ddbf3c857ab0918f064417ad5ac530014ccb3cf8c8f1
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { ref: '${{ env.CHECKOUT_REF }}', persist-credentials: false }
+      - name: Semgrep (fails on ERROR severity)
+        run: >-
+          docker run --rm -v "$PWD:/src" -w /src "$SEMGREP_IMAGE"
+          semgrep scan --metrics=off --error --severity=ERROR
+          --config=p/php --config=p/phpcs-security-audit --config=p/security-audit
+          --config=p/javascript --config=p/react
+          --exclude=vendor --exclude=node_modules --exclude=public/build --exclude=storage
+          --json-output=semgrep.json --text
+      - name: Upload Semgrep report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with: { name: 'semgrep', path: semgrep.json, retention-days: 7, if-no-files-found: ignore, overwrite: true }
+
+  licenses:
+    name: License compliance
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { ref: '${{ env.CHECKOUT_REF }}', persist-credentials: false }
+      - uses: ./.github/actions/setup-php-app
+      - uses: ./.github/actions/setup-node-app
+      - name: Check licenses
+        run: |
+          composer licenses --no-dev --format=json > "$RUNNER_TEMP/composer-licenses.json"
+          npx --yes license-checker-rseidelsohn@5.0.1 --json --excludePrivatePackages > "$RUNNER_TEMP/npm-licenses.json"
+          node .github/scripts/check-licenses.mjs "$RUNNER_TEMP/composer-licenses.json" "$RUNNER_TEMP/npm-licenses.json"
+
+  workflow-lint:
+    name: Workflow and script lint (actionlint, shellcheck)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { ref: '${{ env.CHECKOUT_REF }}', persist-credentials: false }
+      - name: actionlint (also shellchecks every run block)
+        env:
+          ACTIONLINT_VERSION: 1.7.12
+          ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+        run: |
+          curl -fsSL -o actionlint.tar.gz "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          echo "${ACTIONLINT_SHA256}  actionlint.tar.gz" | sha256sum -c -
+          tar -xzf actionlint.tar.gz -C "$RUNNER_TEMP" actionlint
+          "$RUNNER_TEMP/actionlint" -color
+      - name: shellcheck (scripts)
+        run: shellcheck --severity=warning .github/scripts/*.sh
+
+  deploy-script:
+    name: Deploy script dry-run tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { ref: '${{ env.CHECKOUT_REF }}', persist-credentials: false }
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: ctype, curl, dom, fileinfo, iconv, mbstring, openssl, pdo_mysql, tokenizer, xml, xmlreader, xmlwriter, zip
+          coverage: none
+      - name: deploy-remote.sh against a temporary CloudPanel-like site
+        run: bash .github/scripts/test-deploy-remote.sh
+
+  tests-php83:
+    name: Tests (PHP 8.3, SQLite)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { ref: '${{ env.CHECKOUT_REF }}', persist-credentials: false }
+      - uses: ./.github/actions/setup-php-app
+        with: { php-version: '8.3' }
+      - name: Prepare .env
+        run: cp .env.example .env && php artisan key:generate --no-interaction
+      - name: PHPUnit (SQLite in memory, from phpunit.xml)
+        run: php artisan test --log-junit=junit-php83.xml
+      - name: Upload test report
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with: { name: 'tests-php83', path: 'junit-php83.xml', retention-days: 7, if-no-files-found: ignore, overwrite: true }
+
+  tests-php85:
+    name: Tests and coverage (PHP 8.5, MySQL)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      mysql:
+        image: mysql:8.4
+        env: { MYSQL_ROOT_PASSWORD: root, MYSQL_DATABASE: finox_test }
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    env:
+      # Process environment overrides the <env> defaults in phpunit.xml (they are not forced).
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_DATABASE: finox_test
+      DB_USERNAME: root
+      DB_PASSWORD: root
+      # Minimum line coverage (%). Measured value rounded down to the nearest 5; raise it as coverage grows.
+      COVERAGE_MIN: '80'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { ref: '${{ env.CHECKOUT_REF }}', persist-credentials: false }
+      - uses: ./.github/actions/setup-php-app
+        with: { coverage: pcov }
+      - name: Prepare .env
+        run: cp .env.example .env && php artisan key:generate --no-interaction
+      - name: PHPUnit with coverage (MySQL 8)
+        run: >-
+          php artisan test --coverage --min="$COVERAGE_MIN"
+          --log-junit=junit-php85.xml
+          --coverage-clover=coverage/clover.xml --coverage-html=coverage/html
+      - name: Coverage summary
+        if: ${{ always() }}
+        run: |
+          [[ -f coverage/clover.xml ]] || exit 0
+          # shellcheck disable=SC2016  # the single-quoted block is PHP code, not shell
+          php -r '$x = simplexml_load_file("coverage/clover.xml")->project->metrics;
+            $l = (int) $x["statements"] ? round(100 * (int) $x["coveredstatements"] / (int) $x["statements"], 2) : 0;
+            $m = (int) $x["methods"] ? round(100 * (int) $x["coveredmethods"] / (int) $x["methods"], 2) : 0;
+            echo "### Coverage\n\n| Lines | Methods | Floor |\n|---|---|---|\n| {$l}% | {$m}% | " . getenv("COVERAGE_MIN") . "% |\n";' >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload coverage and test reports
+        if: ${{ always() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage
+          path: |
+            coverage/
+            junit-php85.xml
+          retention-days: 7
+          if-no-files-found: ignore
+          overwrite: true
+
+  database:
+    name: Migrations, seeders, backup, scheduler and queue (MySQL)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      mysql:
+        image: mysql:8.4
+        env: { MYSQL_ROOT_PASSWORD: root, MYSQL_DATABASE: finox_ci }
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    env:
+      MYSQL_PWD: root
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { ref: '${{ env.CHECKOUT_REF }}', persist-credentials: false }
+      - uses: ./.github/actions/setup-php-app
+      - name: Prepare .env (MySQL)
+        run: |
+          bash .github/scripts/write-env.sh .env APP_ENV=ci APP_DEBUG=false DB_CONNECTION=mysql DB_HOST=127.0.0.1 \
+            DB_PORT=3306 DB_DATABASE=finox_ci DB_USERNAME=root DB_PASSWORD=root QUEUE_CONNECTION=database
+          php artisan key:generate --no-interaction --force
+
+      - name: Fresh migrate and seed
+        run: php artisan migrate:fresh --seed --drop-views --force --no-interaction
+
+      - name: Seeder is idempotent (second run changes nothing)
+        run: |
+          # Exact row count of every base table.
+          snapshot() {
+            for t in $(mysql -h127.0.0.1 -uroot -N finox_ci -e "SHOW FULL TABLES WHERE Table_type='BASE TABLE'" | cut -f1 | sort); do
+              echo "$t $(mysql -h127.0.0.1 -uroot -N finox_ci -e "SELECT COUNT(*) FROM \`$t\`")"
+            done > "$1"
+          }
+          snapshot before.txt
+          php artisan db:seed --force --no-interaction
+          snapshot after.txt
+          diff -u before.txt after.txt || { echo "::error::Running DatabaseSeeder twice changed row counts (see diff above)"; exit 1; }
+
+      - name: Every migration rolls back cleanly, then migrates again
+        run: |
+          php artisan migrate:reset --force --no-interaction
+          left=$(mysql -h127.0.0.1 -uroot -N finox_ci -e "SELECT GROUP_CONCAT(table_name) FROM information_schema.tables WHERE table_schema='finox_ci' AND table_name <> 'migrations'")
+          if [[ "$left" != "NULL" && -n "$left" ]]; then echo "::error::Tables/views left after migrate:reset: $left"; exit 1; fi
+          php artisan migrate --seed --force --no-interaction
+          php artisan migrate:status --no-interaction
+          if php artisan migrate:status --no-interaction | grep -qw 'Pending'; then echo "::error::Pending migrations after migrate"; exit 1; fi
+
+      - name: Demo data seeds on the migrated schema
+        run: php artisan db:seed --class=DemoSeeder --force --no-interaction
+
+      - name: Scheduler definitions
+        run: |
+          php artisan schedule:list --no-interaction | tee schedule.txt
+          for cmd in finox:flag-stale finox:backup; do grep -q "$cmd" schedule.txt || { echo "::error::$cmd is not scheduled"; exit 1; }; done
+
+      - name: Scheduled command finox:flag-stale runs
+        run: php artisan finox:flag-stale --no-interaction
+
+      - name: Scheduled command finox:backup produces a restorable backup
+        run: |
+          php artisan finox:backup --no-interaction
+          zip=$(find storage/app/backups -name 'finox-backup-*.zip' -printf '%T@ %p\n' | sort -n | tail -n1 | cut -d' ' -f2)
+          [[ -n "$zip" ]] || { echo "::error::finox:backup wrote no zip"; exit 1; }
+          unzip -l "$zip"
+          unzip -p "$zip" database.sql > restore.sql
+          mysql -h127.0.0.1 -uroot -e "CREATE DATABASE finox_restore"
+          mysql -h127.0.0.1 -uroot finox_restore < restore.sql
+          src=$(mysql -h127.0.0.1 -uroot -N -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='finox_ci'")
+          dst=$(mysql -h127.0.0.1 -uroot -N -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='finox_restore'")
+          echo "tables: source=$src restored=$dst"
+          [[ "$src" == "$dst" ]] || { echo "::error::Restored backup has $dst tables/views, expected $src"; exit 1; }
+
+      - name: Queue worker boots on the database driver
+        run: |
+          for t in jobs failed_jobs job_batches; do
+            mysql -h127.0.0.1 -uroot -N finox_ci -e "SELECT 1 FROM \`$t\` LIMIT 1" > /dev/null || { echo "::error::Table $t is missing"; exit 1; }
+          done
+          php artisan queue:work database --once --stop-when-empty --tries=1 --no-interaction
+
+  app-validation:
+    name: Config, route, view and event caching (production settings)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { ref: '${{ env.CHECKOUT_REF }}', persist-credentials: false }
+      - uses: ./.github/actions/setup-php-app
+        with: { no-dev: 'true' }
+      - name: Production-like .env
+        run: |
+          # No database in this job: the cache store is "array" here (schedule:list takes a cache lock).
+          # The deployment's verify step runs schedule:list on the server with the real database cache.
+          bash .github/scripts/write-env.sh .env APP_ENV=production APP_DEBUG=false LOG_LEVEL=warning \
+            DB_CONNECTION=mysql SESSION_SECURE_COOKIE=true CACHE_STORE=array
+          php artisan key:generate --no-interaction --force
+      - name: env() is only called inside config/ (it returns null once config is cached)
+        run: |
+          if grep -rnE '\benv\(' app routes database resources/views; then
+            echo "::error::env() used outside config/ - move it into a config file and use config()"; exit 1
+          fi
+      - name: php artisan optimize (config, events, routes, views)
+        run: php artisan optimize --no-interaction
+      - name: Cached application still boots
+        run: |
+          php artisan about --only=environment,cache --no-interaction
+          php artisan route:list --no-interaction > /dev/null
+          php artisan schedule:list --no-interaction
+      - name: Clear caches
+        run: php artisan optimize:clear --no-interaction
+
+  build:
+    name: Build release artifact
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      artifact: ${{ steps.meta.outputs.artifact }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { ref: '${{ env.CHECKOUT_REF }}', persist-credentials: false }
+      - name: Release metadata
+        id: meta
+        run: |
+          sha=$(git rev-parse HEAD)
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "artifact=release-$sha" >> "$GITHUB_OUTPUT"
+      - uses: ./.github/actions/setup-node-app
+      - name: Vite build
+        run: npm run build
+      - name: Validate build manifest
+        run: bash .github/scripts/check-manifest.sh
+      - name: Upload frontend build (for E2E and performance jobs)
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with: { name: 'frontend-build', path: public/build, retention-days: 1, if-no-files-found: error, overwrite: true }
+      - uses: ./.github/actions/setup-php-app
+        with: { no-dev: 'true' }
+      - name: Platform requirements (PHP ${{ env.PHP_VERSION }}, no-dev)
+        run: composer check-platform-reqs --no-dev --no-interaction
+      - name: Assemble release tarball
+        env:
+          SHA: ${{ steps.meta.outputs.sha }}
+        run: |
+          mkdir -p dist/app
+          rsync -a ./ dist/app/ \
+            --exclude='/.git' --exclude='/.github' --exclude='/node_modules' --exclude='/tests' --exclude='/e2e' \
+            --exclude='/storage' --exclude='/docs' --exclude='/dist' --exclude='/coverage' \
+            --exclude='/resources/js' --exclude='/resources/css' \
+            --exclude='/.env' --exclude='/.env.*' --exclude='/public/hot' --exclude='/public/storage' \
+            --exclude='/phpunit.xml' --exclude='/playwright.config.js' --exclude='/eslint.config.js' --exclude='/eslint-suppressions.json' \
+            --exclude='/phpstan.neon' --exclude='/phpstan-baseline.neon' --exclude='/pint.json' --exclude='/.styleci.yml' \
+            --exclude='/test-results' --exclude='/playwright-report'
+          printf '{"sha":"%s","built_at":"%s","run_id":"%s","run_attempt":"%s"}\n' \
+            "$SHA" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" > dist/app/.release.json
+          test -f dist/app/artisan && test -f dist/app/vendor/autoload.php && test -f dist/app/public/build/manifest.json
+          tar -czf dist/release.tar.gz -C dist/app .
+          cp .github/scripts/deploy-remote.sh dist/deploy-remote.sh
+          (cd dist && sha256sum release.tar.gz deploy-remote.sh > SHA256SUMS)
+          du -h dist/release.tar.gz
+      - name: Upload release artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ steps.meta.outputs.artifact }}
+          path: |
+            dist/release.tar.gz
+            dist/deploy-remote.sh
+            dist/SHA256SUMS
+          retention-days: 14
+          if-no-files-found: error
+          overwrite: true
+
+  e2e:
+    name: Browser tests and accessibility (Playwright)
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      mysql:
+        image: mysql:8.4
+        env: { MYSQL_ROOT_PASSWORD: root, MYSQL_DATABASE: finox_test }
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    env:
+      APP_ENV: e2e   # makes Laravel read .env.e2e
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { ref: '${{ env.CHECKOUT_REF }}', persist-credentials: false }
+      - uses: ./.github/actions/setup-php-app
+      - uses: ./.github/actions/setup-node-app
+      - name: Download frontend build
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with: { name: 'frontend-build', path: public/build }
+      - name: Prepare .env.e2e and database
+        run: |
+          bash .github/scripts/write-env.sh .env.e2e APP_ENV=e2e APP_DEBUG=true APP_URL=http://127.0.0.1:8765 \
+            DB_CONNECTION=mysql DB_HOST=127.0.0.1 DB_PORT=3306 DB_DATABASE=finox_test DB_USERNAME=root DB_PASSWORD=root \
+            SESSION_DRIVER=file
+          php artisan key:generate --no-interaction --force
+          php artisan migrate:fresh --seed --drop-views --force --no-interaction
+          php artisan db:seed --class=DemoSeeder --force --no-interaction
+          php artisan db:seed --class=E2eUserSeeder --force --no-interaction
+      - name: Start application server
+        run: |
+          nohup php artisan serve --host=127.0.0.1 --port=8765 --no-reload > storage/logs/serve.log 2>&1 &
+          for _ in $(seq 1 30); do curl -fsS -o /dev/null http://127.0.0.1:8765/up && exit 0; sleep 1; done
+          echo "::error::Server did not start"; cat storage/logs/serve.log; exit 1
+      - name: Cache Playwright browsers
+        id: pw-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - name: Install Chromium
+        env:
+          CACHE_HIT: ${{ steps.pw-cache.outputs.cache-hit }}
+        run: |
+          if [[ "$CACHE_HIT" == "true" ]]; then npx playwright install-deps chromium; else npx playwright install --with-deps chromium; fi
+      - name: Playwright (all specs, incl. axe accessibility)
+        run: npx playwright test --reporter=list,html --trace=retain-on-failure
+      - name: Upload Playwright report, traces and logs
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-report
+          path: |
+            playwright-report/
+            test-results/
+            storage/logs/
+          retention-days: 7
+          if-no-files-found: ignore
+          overwrite: true
+
+  performance:
+    name: Performance budget (20k records)
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      mysql:
+        image: mysql:8.4
+        env: { MYSQL_ROOT_PASSWORD: root, MYSQL_DATABASE: finox_perf }
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    env:
+      APP_ENV: e2e
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { ref: '${{ env.CHECKOUT_REF }}', persist-credentials: false }
+      - uses: ./.github/actions/setup-php-app
+      - name: Download frontend build
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with: { name: 'frontend-build', path: public/build }
+      - name: Prepare database with load-test data
+        run: |
+          bash .github/scripts/write-env.sh .env.e2e APP_ENV=e2e APP_DEBUG=false LOG_LEVEL=warning APP_URL=http://127.0.0.1:8765 \
+            DB_CONNECTION=mysql DB_HOST=127.0.0.1 DB_PORT=3306 DB_DATABASE=finox_perf DB_USERNAME=root DB_PASSWORD=root \
+            SESSION_DRIVER=file
+          php artisan key:generate --no-interaction --force
+          php artisan migrate:fresh --seed --drop-views --force --no-interaction
+          php artisan db:seed --class=DemoSeeder --force --no-interaction
+          php artisan db:seed --class=E2eUserSeeder --force --no-interaction
+          php artisan finox:seed-loadtest 20000 --no-interaction
+          php artisan optimize --no-interaction
+      - name: Start application server
+        run: |
+          nohup php artisan serve --host=127.0.0.1 --port=8765 --no-reload > storage/logs/serve.log 2>&1 &
+          for _ in $(seq 1 30); do curl -fsS -o /dev/null http://127.0.0.1:8765/up && exit 0; sleep 1; done
+          echo "::error::Server did not start"; cat storage/logs/serve.log; exit 1
+      - name: Check budgets (pages < 2 s, search < 1 s)
+        run: bash .github/scripts/perf-budget.sh http://127.0.0.1:8765 e2e-admin@finox.test 'E2e#Password2026'
+
+  gate:
+    name: CI gate
+    if: ${{ always() }}
+    needs: [php-style, phpstan, eslint, dependency-audit, secret-scan, sast, licenses, workflow-lint, deploy-script, tests-php83, tests-php85, database, app-validation, build, e2e, performance]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: All required jobs succeeded
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          echo "$NEEDS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          bad=$(echo "$NEEDS" | jq -r '[to_entries[] | select(.value.result != "success") | .key] | join(", ")')
+          if [[ -n "$bad" ]]; then echo "::error::CI gate failed - not successful: $bad"; exit 1; fi
+          echo "All CI jobs passed."

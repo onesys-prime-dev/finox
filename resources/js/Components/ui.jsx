@@ -113,7 +113,7 @@ export function Tabs({ tabs, value, onChange }) {
         <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
             {tabs.map((t) => (
                 <button key={t.value} onClick={() => onChange(t.value)}
-                    className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${value === t.value ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>{t.label}</button>
+                    className={`rounded-md px-3 py-1.5 text-sm font-medium transition ${value === t.value ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-800'}`}>{t.label}</button>
             ))}
         </div>
     );

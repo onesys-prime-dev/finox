@@ -14,7 +14,7 @@ export default function History({ logs, filters }) {
             <PageHeader title="Print history" subtitle="Every print attempt, reprint and reported problem. Earlier attempts are never changed." back={{ href: route('printing.index'), label: 'Print center' }} />
             <div className="card">
                 <div className="flex flex-wrap items-center gap-3 p-4">
-                    <select className="input !w-auto" value={f.status ?? ''} onChange={(e) => apply({ ...f, status: e.target.value }, true)}><option value="">All results</option><option value="initiated">Awaiting confirmation</option><option value="confirmed">Confirmed</option><option value="failed">Problem</option></select>
+                    <select aria-label="Filter by status" className="input !w-auto" value={f.status ?? ''} onChange={(e) => apply({ ...f, status: e.target.value }, true)}><option value="">All results</option><option value="initiated">Awaiting confirmation</option><option value="confirmed">Confirmed</option><option value="failed">Problem</option></select>
                     <label className="flex items-center gap-1.5 text-sm text-slate-600"><input type="checkbox" className="rounded border-slate-300 text-brand-600" checked={!!f.reprint} onChange={(e) => apply({ ...f, reprint: e.target.checked ? 1 : '' }, true)} /> Reprints only</label>
                 </div>
                 <div className="overflow-x-auto">

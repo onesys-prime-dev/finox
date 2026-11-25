@@ -7,6 +7,7 @@ use App\Models\ChequeLine;
 use App\Models\Receipt;
 use App\Models\User;
 use App\Support\Money;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -76,7 +77,7 @@ class ReceiptService
         return $e;
     }
 
-    /** @return array{exact: ?Receipt, similar: \Illuminate\Support\Collection} */
+    /** @return array{exact: ?Receipt, similar: Collection} */
     public function duplicates(?string $number, ?int $payeeId, ?int $ignoreId = null): array
     {
         if (! $number) {
@@ -144,18 +145,17 @@ class ReceiptService
         });
     }
 
-    /** Remove an unfinished draft from the intake queue. Nothing is deleted: it is cancelled, with the reason logged. */
+    /** Remove an unfinished draft from the intake queue. Nothing is deleted: it is cancelled (with the reason), plus a log line saying why. */
     public function discard(Receipt $r, User $user): Receipt
     {
-        return DB::transaction(function () use ($r, $user) {
-            $r = Receipt::lockForUpdate()->findOrFail($r->id);
-            if ($r->status !== ReceiptStatus::Draft) {
-                throw ValidationException::withMessages(['status' => 'Only a draft can be removed from the queue.']);
-            }
-            $label = $r->receipt_number ?: "draft #{$r->id}";
+        if ($r->getRawOriginal('status') !== ReceiptStatus::Draft->value) {
+            throw ValidationException::withMessages(['status' => 'Only a draft can be removed from the queue.']);
+        }
+        $label = $r->receipt_number ?: "draft #{$r->id}";
+        $r = $this->cancel($r, 'Removed from intake queue (wrong or unwanted file)', $user);
+        ActivityLogService::log('receipt.discarded', 'receipts', "Removed {$label} from the intake queue", $r, user: $user);
 
-            return $this->move($r, ReceiptStatus::Cancelled, $user, 'Removed from intake queue (wrong or unwanted file)', 'receipt.discarded', "Removed {$label} from the intake queue");
-        });
+        return $r;
     }
 
     private function step(Receipt $r, ReceiptStatus $from, ReceiptStatus $to, User $user, string $action, string $desc): Receipt

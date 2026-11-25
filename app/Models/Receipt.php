@@ -68,6 +68,12 @@ class Receipt extends Model
         return in_array($this->status, [ReceiptStatus::Draft, ReceiptStatus::Recorded, ReceiptStatus::Verified], true);
     }
 
+    /** Still a draft: uploaded or started, but never recorded. */
+    public function isDraft(): bool
+    {
+        return $this->getAttributeValue('status') === ReceiptStatus::Draft;
+    }
+
     public function scopeVisibleTo(Builder $q, User $user): Builder
     {
         return $user->hasPermission('receipts.view_all') ? $q : $q->where('created_by', $user->id);

@@ -6,6 +6,7 @@ use App\Models\BankAccount;
 use App\Models\User;
 use App\Services\ActivityLogService;
 use App\Services\RegisterQuery;
+use App\Support\TableExport;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -37,7 +38,7 @@ class RegisterController extends Controller
     {
         abort_unless($request->user()->hasPermission('register.view'), 403);
         $q = new RegisterQuery($request->only(self::KEYS));
-        $fmt = \App\Support\TableExport::format($request->input('format'));
+        $fmt = TableExport::format($request->input('format'));
         ActivityLogService::log('report.exported', 'reports', 'Exported transaction register ('.strtoupper($fmt).')');
 
         $rows = (function () use ($q) {
@@ -46,7 +47,7 @@ class RegisterController extends Controller
             }
         })();
 
-        return \App\Support\TableExport::stream('transaction-register', $fmt,
+        return TableExport::stream('transaction-register', $fmt,
             ['Transaction ID', 'Type', 'Reference', 'Payee/Vendor', 'Date', 'Amount', 'Status', 'Created'], $rows, [5]);
     }
 }

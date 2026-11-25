@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Support\Settings;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -21,7 +22,7 @@ class EnsureUserIsActive
             return $this->logout($request, 'Your account has been deactivated. Contact an administrator.');
         }
 
-        $idle = (int) \App\Support\Settings::get('session_minutes', 60);
+        $idle = (int) Settings::get('session_minutes', 60);
         $last = $request->session()->get('last_activity');
         if ($idle > 0 && $last && now()->timestamp - $last > $idle * 60) {
             return $this->logout($request, 'You were signed out after a period of inactivity.');

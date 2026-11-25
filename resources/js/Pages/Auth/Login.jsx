@@ -39,7 +39,7 @@ export default function Login() {
                 </label>
                 <button className="btn-primary btn-lg w-full" disabled={processing}>{processing ? <Spinner /> : null} Sign in</button>
             </form>
-            <p className="mt-6 text-center text-xs text-slate-400">Forgot your password? Ask an administrator to reset it.</p>
+            <p className="mt-6 text-center text-xs text-slate-500">Forgot your password? Ask an administrator to reset it.</p>
         </GuestLayout>
     );
 }

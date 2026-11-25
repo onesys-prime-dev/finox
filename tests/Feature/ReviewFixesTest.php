@@ -4,10 +4,11 @@ namespace Tests\Feature;
 
 use App\Models\BankAccount;
 use App\Models\Payee;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 use App\Services\ChequeService;
 use App\Services\PrintingService;
+use App\Support\Money;
 use App\Support\TableExport;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
@@ -51,11 +52,11 @@ class ReviewFixesTest extends TestCase
 
     public function test_money_parse_rejects_ambiguous_commas(): void
     {
-        $this->assertSame('1234.50', \App\Support\Money::parse('1,234.5'));
-        $this->assertSame('1234567.00', \App\Support\Money::parse('₱ 1,234,567'));
-        $this->assertSame('15.00', \App\Support\Money::parse('15'));
+        $this->assertSame('1234.50', Money::parse('1,234.5'));
+        $this->assertSame('1234567.00', Money::parse('₱ 1,234,567'));
+        $this->assertSame('15.00', Money::parse('15'));
         foreach (['1,5', '12,34', '1,2345', ',5', '1,,000'] as $bad) {
-            $this->assertNull(\App\Support\Money::parse($bad), $bad);
+            $this->assertNull(Money::parse($bad), $bad);
         }
     }
 

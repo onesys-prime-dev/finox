@@ -155,9 +155,11 @@ function QueueItem({ item, categories, position, total, onPrev, onNext }) {
                 <div className="relative h-[60vh] min-h-[22rem] bg-slate-100 xl:h-auto xl:min-h-0 xl:flex-1">
                     {item.file ? (isImg
                         ? <div className="absolute inset-0 flex items-start justify-center overflow-auto p-3 scroll-thin">
-                            <img src={route('documents.show', item.file.id)} alt={`Preview of ${item.file.name}`} onClick={() => setZoom(!zoom)}
-                                title={zoom ? 'Click to fit the picture' : 'Click to zoom in'}
-                                className={`rounded shadow ${zoom ? 'max-w-none cursor-zoom-out' : 'max-w-full cursor-zoom-in'}`} />
+                            <button type="button" onClick={() => setZoom(!zoom)} aria-pressed={zoom} title={zoom ? 'Click to fit the picture' : 'Click to zoom in'}
+                                aria-label={zoom ? 'Fit the picture to the panel' : 'Zoom in on the picture'}
+                                className={`block ${zoom ? 'cursor-zoom-out' : 'max-w-full cursor-zoom-in'}`}>
+                                <img src={route('documents.show', item.file.id)} alt={`Preview of ${item.file.name}`} className={`rounded shadow ${zoom ? 'max-w-none' : 'max-w-full'}`} />
+                            </button>
                         </div>
                         : <iframe className="absolute inset-0 h-full w-full" src={route('documents.show', item.file.id)} title="Receipt preview" />)
                         : <div className="absolute inset-0 flex items-center justify-center text-sm text-slate-400">No file attached</div>}
