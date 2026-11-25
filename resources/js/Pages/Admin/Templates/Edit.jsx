@@ -125,7 +125,7 @@ export default function Edit({ template, sources, kind }) {
                             <Field label="Offset X (mm)"><input type="number" step="0.1" className="input" value={data.offset_x_mm} onChange={(e) => setData('offset_x_mm', e.target.value)} /></Field>
                             <Field label="Offset Y (mm)"><input type="number" step="0.1" className="input" value={data.offset_y_mm} onChange={(e) => setData('offset_y_mm', e.target.value)} /></Field>
                         </div>
-                        <Field label="Scan / background image" hint="Preview only — never printed. JPG or PNG."><input type="file" accept=".jpg,.jpeg,.png" className="input" onChange={(e) => { const file = e.target.files[0]; setData('background', file ?? null); if (file) setBgUrl(URL.createObjectURL(file)); }} /></Field>
+                        <Field label="Scan / background image" hint="Preview only. JPG or PNG."><input type="file" accept=".jpg,.jpeg,.png" className="input" onChange={(e) => { const file = e.target.files[0]; setData('background', file ?? null); if (file) setBgUrl(URL.createObjectURL(file)); }} /></Field>
                         <label className="flex items-center gap-2 text-sm"><input type="checkbox" className="rounded border-slate-300 text-brand-600" checked={data.is_active} onChange={(e) => setData('is_active', e.target.checked)} /> Active</label>
                     </div>
 
