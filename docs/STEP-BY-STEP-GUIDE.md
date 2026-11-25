@@ -57,7 +57,11 @@ A template tells FINOX where to print each item on your cheque stock. FINOX come
 5. **Calibrate** (see Part 5.5) on plain paper before first real use.
 
 ### 2.4 Receipt categories
-**Settings** → *Receipt categories* → type a name → **Add**. Use **Disable** to hide one without deleting it.
+**Settings** → *Receipt categories* → type a name → **Add**. Each row shows how many receipts use the category.
+- **Search** the list, or use the *All / Active / Disabled* tabs to narrow it.
+- **Rename** fixes a typo; receipts that already use the category follow the new name (the old name stays in the activity log).
+- **Disable** hides a category from the receipt form but keeps it on old receipts. **Enable** brings it back.
+- **Delete** is only available for a category that no receipt has ever used (it shows *Not used*). A category in use can only be disabled.
 
 ### 2.5 Payees and vendors
 **Payees** → **Add payee** (name, TIN, and a *Default payee line* if cheques to this payee should print special text such as `BPI Ayala FAO Bureau of Internal Revenue IFO <company> TIN <number>`). Staff can also add payees on the spot while entering a cheque.
@@ -101,7 +105,8 @@ Receipts should be entered **before** the cheque that pays them, so they can be 
 1. **Receipts** → **Upload files**. Drag up to 10 files in (PDF/JPG/PNG, up to the size limit).
 2. Each file becomes a draft in the queue on the left, with a preview on the right.
 3. Fill in the details beside the preview. Press **Save & next** (or `Ctrl+Enter`) to record it and jump to the next one, or **Save draft** to come back later.
-4. Uploading never verifies a receipt.
+4. Uploaded the wrong file? Open it in the queue and press **Remove from queue**, then confirm. No receipt is created from it, and the removal is recorded in the activity log. Upload the correct file again.
+5. Uploading never verifies a receipt.
 
 ### 3.3 Checking a receipt (Finance)
 Open the receipt → press the button at the top: **Mark verified** → **Mark processed** → **Archive**. Each step is recorded with your name. Editing a verified receipt sends it back to *Recorded* so it is checked again.

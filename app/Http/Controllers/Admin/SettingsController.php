@@ -18,7 +18,7 @@ class SettingsController extends Controller
     {
         return Inertia::render('Admin/Settings', [
             'settings' => Settings::all(),
-            'categories' => ReceiptCategory::orderBy('name')->get(['id', 'name', 'is_active']),
+            'categories' => ReceiptCategory::withCount('receipts')->orderBy('name')->get(['id', 'name', 'is_active']),
         ]);
     }
 
@@ -48,6 +48,7 @@ class SettingsController extends Controller
 
     public function storeCategory(Request $request): RedirectResponse
     {
+        $request->merge(['name' => trim((string) $request->input('name'))]);
         $d = $request->validate(['name' => 'required|string|max:100|unique:receipt_categories,name']);
         $c = ReceiptCategory::create($d);
         ActivityLogService::log('category.created', 'settings', "Added receipt category {$c->name}", $c);
@@ -55,12 +56,29 @@ class SettingsController extends Controller
         return back()->with('success', 'Category added.');
     }
 
+    /** Rename and/or enable-disable. The old name is kept in the activity log. */
     public function updateCategory(Request $request, ReceiptCategory $category): RedirectResponse
     {
+        $request->merge(['name' => trim((string) $request->input('name'))]);
         $d = $request->validate(['name' => 'required|string|max:100|unique:receipt_categories,name,'.$category->id, 'is_active' => 'boolean']);
+        $oldName = $category->name;
         $category->update($d);
-        ActivityLogService::log('category.updated', 'settings', "Updated receipt category {$category->name}", $category);
+        [$old, $new] = ActivityLogService::diff($category);
+        $desc = $oldName !== $category->name ? "Renamed receipt category {$oldName} to {$category->name}" : "Updated receipt category {$category->name}";
+        ActivityLogService::log('category.updated', 'settings', $desc, $category, $old, $new);
 
         return back()->with('success', 'Category saved.');
+    }
+
+    /** Only a category that no receipt has ever used can be removed; otherwise it is disabled instead. */
+    public function destroyCategory(ReceiptCategory $category): RedirectResponse
+    {
+        if ($category->receipts()->exists()) {
+            return back()->with('error', "'{$category->name}' is used by receipts and cannot be deleted. Disable it instead.");
+        }
+        ActivityLogService::log('category.deleted', 'settings', "Deleted receipt category {$category->name}", $category);
+        $category->delete();
+
+        return back()->with('success', 'Category deleted.');
     }
 }

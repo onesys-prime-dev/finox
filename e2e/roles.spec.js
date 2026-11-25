@@ -24,6 +24,7 @@ const PAGES = {
     '/admin/roles': ['admin'],
     '/admin/banks': ['admin'],
     '/admin/templates': ['admin'],
+    '/admin/templates/create': ['admin'],
     '/admin/settings': ['admin'],
     '/admin/problems': ['admin'],
 };

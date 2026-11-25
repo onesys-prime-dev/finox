@@ -129,10 +129,5 @@
     "no-unused-vars": {
       "count": 1
     }
-  },
-  "resources/js/Pages/Receipts/Intake.jsx": {
-    "no-unused-vars": {
-      "count": 2
-    }
   }
 }

@@ -193,8 +193,22 @@ test('ADMIN: users, roles, banks, payees, templates, settings, categories, probl
         await page.getByPlaceholder('New category').fill(`QA Cat ${stamp}`);
         await page.getByRole('button', { name: 'Add', exact: true }).click();
         await toast(page, /Category added/);
-        await page.locator('span', { hasText: `QA Cat ${stamp}` }).getByRole('button', { name: 'Disable' }).click();
+        await page.locator('li', { hasText: `QA Cat ${stamp}` }).getByRole('button', { name: 'Disable' }).click();
         await toast(page, /Category saved/);
+    });
+    await check('settings: categories search, rename, delete (only when unused)', async () => {
+        const name = `QA Cat ${stamp}`;
+        await page.getByPlaceholder('Search categories…').fill(name);
+        await page.locator('li', { hasText: name }).getByRole('button', { name: 'Rename' }).click();
+        await page.getByLabel(`Rename ${name}`).fill(`${name} B`);
+        await page.getByLabel(`Rename ${name}`).press('Enter');
+        await toast(page, /Category saved/);
+        await expect(page.locator('li', { hasText: `${name} B` })).toHaveCount(1);
+        await page.locator('li', { hasText: `${name} B` }).getByRole('button', { name: 'Delete' }).click();
+        await page.getByRole('button', { name: 'Delete category' }).click();
+        await toast(page, /Category deleted/);
+        await expect(page.locator('li', { hasText: `${name} B` })).toHaveCount(0);
+        await page.getByPlaceholder('Search categories…').fill('');
     });
 
     await check('problem report: send and resolve', async () => {
@@ -357,6 +371,18 @@ test('ENCODER: create cheques with breakdown, receipts, own-records only, no pri
         await page.getByPlaceholder('0.00').first().fill('250');
         await page.getByRole('button', { name: /Save & next/ }).click();
         await toast(page, /Saved/);
+    });
+    await check('receipt intake: a wrongly uploaded file can be removed from the queue', async () => {
+        await page.goto('/receipts/intake');
+        let first = true;
+        while (await page.getByRole('button', { name: 'Remove', exact: true }).count()) {
+            await page.getByRole('button', { name: 'Remove', exact: true }).click();
+            await expect(page.getByRole('dialog')).toContainText(/Remove this file from the queue/);
+            await page.getByRole('button', { name: 'Remove from queue' }).last().click();
+            if (first) { await toast(page, /Removed from the queue/); first = false; } else { await page.waitForTimeout(700); }
+        }
+        expect(first, 'there was a draft to remove').toBe(false);
+        await expect(page.locator('body')).not.toContainText(/To fill in/);
     });
     await check('receipt: cannot verify (no permission)', async () => {
         await page.goto(state.receiptUrl);

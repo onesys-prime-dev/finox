@@ -78,8 +78,9 @@ Measured on 50,000 records (dev server, MySQL 8): cheque list 40 ms, search 60â€
 * `php artisan test` â€” 37+ PHP tests (roles, business rules, exports, retention). Runs on in-memory SQLite by default; add `DB_CONNECTION=mysql DB_DATABASE=finox_test DB_USERNAME=root` to run on MySQL too (the transaction register is a MySQL view).
 * `npm run e2e` â€” real-browser tests (Playwright/Chromium): every page as every role, and the full cheque lifecycle through the screens. It needs a separate database and server:
   1. Create the database `finox_test`, copy `.env` to `.env.e2e` and set `APP_ENV=e2e`, `DB_DATABASE=finox_test`, `SESSION_DRIVER=file`, `APP_URL=http://127.0.0.1:8765`.
-  2. `DB_DATABASE=finox_test php artisan migrate:fresh --seed`, then `php artisan db:seed --class=DemoSeeder`, then `APP_ENV=e2e php artisan db:seed --class=E2eUserSeeder` (creates the `e2e-<role>@finox.test` users; password in `e2e/helpers.js`; refuses to run unless `APP_ENV` is `e2e` or `testing`).
+  2. `DB_DATABASE=finox_test php artisan migrate:fresh --seed`, then `php artisan db:seed --class=DemoSeeder`, then `APP_ENV=e2e php artisan db:seed --class=E2eUserSeeder` (creates the `e2e-<role>@finox.test` users and makes `e2e-encoder` the owner of cheque 1; password in `e2e/helpers.js`; refuses to run unless `APP_ENV` is `e2e` or `testing`).
   3. `APP_ENV=e2e php artisan serve --host=127.0.0.1 --port=8765`, then `npm run e2e`.
+  4. The finance walkthrough uses up one released and one printed demo cheque per run. If a run fails with *waiting for locator('tbody tr')* on a released/printed list, the demo data is used up: repeat steps 2 to 3 on a fresh `finox_test` (never on the live database).
 * Headless Chromium shows no print dialog, so the e2e print step sends the browser's `afterprint` signal itself. In a real browser the confirm window appears when the print dialog closes; if it ever does not, the job waits under "Awaiting confirmation" on the Print center.
 * `e2e/a11y.spec.js` scans every page with axe-core and fails on critical/serious accessibility violations.
 * Quality checks: `vendor/bin/pint --test`, `vendor/bin/phpstan analyse --memory-limit=2G`, `npm run lint`.
@@ -87,10 +88,10 @@ Measured on 50,000 records (dev server, MySQL 8): cheque list 40 ms, search 60â€
 
 ## Scheduler (Windows)
 
-Laravel's scheduler needs one task that runs every minute. Use the XAMPP PHP (it has the `zip` extension the backup needs; the Laragon PHP does not):
+Laravel's scheduler needs one task that runs every minute. FINOX needs **PHP 8.3 or newer** with the `zip` extension (the backup and the Excel export use it). On Laragon use its PHP 8.3 and enable `extension=zip` in that PHP's `php.ini` (it ships switched off); XAMPP's PHP 8.2 is too old.
 
 ```
-schtasks /Create /SC MINUTE /MO 1 /TN "FINOX Scheduler" /TR "C:\Windows\System32\conhost.exe --headless C:\xampp\php\php.exe C:\laragon\www\finox\artisan schedule:run"
+schtasks /Create /SC MINUTE /MO 1 /TN "FINOX Scheduler" /TR "C:\Windows\System32\conhost.exe --headless C:\laragon\bin\php\php-8.3.33-Win32-vs16-x64\php.exe C:\laragon\www\finox\artisan schedule:run"
 ```
 
 `conhost --headless` keeps a cmd window from popping up every minute. Don't swap in `php-win.exe`: Laravel then starts `cmd /c stty` and `cmd /c mode CON` with no console, and each one opens a window.
