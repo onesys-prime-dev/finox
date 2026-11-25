@@ -75,7 +75,9 @@ Measured on 50,000 records (dev server, MySQL 8): cheque list 40 ms, search 60â€
 * `npm run e2e` â€” real-browser tests (Playwright/Chromium): every page as every role, and the full cheque lifecycle through the screens. It needs a separate database and server:
   1. Create the database `finox_test`, copy `.env` to `.env.e2e` and set `APP_ENV=e2e`, `DB_DATABASE=finox_test`, `SESSION_DRIVER=file`, `APP_URL=http://127.0.0.1:8765`.
   2. `DB_DATABASE=finox_test php artisan migrate:fresh --seed` then `php artisan db:seed --class=DemoSeeder` and create the `e2e-<role>@finox.test` users (password in `e2e/helpers.js`).
+     Users: one per role (`admin`, `finance`, `encoder`, `printing`, `management`), `must_change_password` off, role ids 1 to 5 in that order. The role test expects **cheque 1 to belong to `e2e-encoder`** (the encoder may only see their own records), so after seeding set `cheques.created_by` of cheque 1 to that user's id.
   3. `APP_ENV=e2e php artisan serve --host=127.0.0.1 --port=8765`, then `npm run e2e`.
+  4. The finance walkthrough uses up one released and one printed demo cheque per run. If a run fails with *waiting for locator('tbody tr')* on a released/printed list, the demo data is used up: repeat steps 2 to 3 on a fresh `finox_test` (never on the live database).
 * Headless Chromium shows no print dialog, so the e2e print step sends the browser's `afterprint` signal itself. In a real browser the confirm window appears when the print dialog closes; if it ever does not, the job waits under "Awaiting confirmation" on the Print center.
 
 ## Scheduler (Windows)

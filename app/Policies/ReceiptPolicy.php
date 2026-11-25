@@ -48,6 +48,12 @@ class ReceiptPolicy
         return $u->hasPermission('receipts.verify') && $r->status === ReceiptStatus::Processed;
     }
 
+    /** Take an unfinished draft out of the intake queue (whoever may edit it; no cancel permission needed). */
+    public function discard(User $u, Receipt $r): bool
+    {
+        return $r->status === ReceiptStatus::Draft && $this->update($u, $r);
+    }
+
     public function cancel(User $u, Receipt $r): bool
     {
         return $u->hasPermission('receipts.cancel')

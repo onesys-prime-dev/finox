@@ -2,9 +2,9 @@ import { Link, router } from '@inertiajs/react';
 import { Children, cloneElement, isValidElement, useEffect, useId, useRef, useState } from 'react';
 import Icon from './Icon';
 
-export function PageHeader({ title, subtitle, actions, back }) {
+export function PageHeader({ title, subtitle, actions, back, className = 'mb-6' }) {
     return (
-        <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <div className={`${className} flex flex-wrap items-start justify-between gap-3`}>
             <div className="min-w-0">
                 {back && <Link href={back.href} className="mb-1 inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-brand-700"><Icon name="chevronLeft" className="h-3.5 w-3.5" />{back.label}</Link>}
                 <h1 className="truncate text-xl font-semibold tracking-tight sm:text-2xl">{title}</h1>

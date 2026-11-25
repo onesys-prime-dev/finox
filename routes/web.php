@@ -66,6 +66,7 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::put('/{receipt}', [ReceiptController::class, 'update'])->name('update');
         Route::post('/{receipt}/files', [ReceiptController::class, 'addFile'])->name('files.add');
         Route::post('/{receipt}/files/{document}/replace', [ReceiptController::class, 'replaceFile'])->name('files.replace');
+        Route::post('/{receipt}/discard', [ReceiptController::class, 'discard'])->name('discard');
         Route::post('/{receipt}/{action}', [ReceiptController::class, 'transition'])->where('action', 'verify|process|archive|cancel')->name('transition');
     });
 
@@ -136,6 +137,7 @@ Route::middleware(['auth', 'active'])->group(function () {
             Route::put('/settings', [Admin\SettingsController::class, 'update'])->name('settings.update');
             Route::post('/categories', [Admin\SettingsController::class, 'storeCategory'])->name('categories.store');
             Route::put('/categories/{category}', [Admin\SettingsController::class, 'updateCategory'])->name('categories.update');
+            Route::delete('/categories/{category}', [Admin\SettingsController::class, 'destroyCategory'])->name('categories.destroy');
         });
     });
 });

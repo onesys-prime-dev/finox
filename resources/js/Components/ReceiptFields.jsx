@@ -6,8 +6,12 @@ import Icon from './Icon';
 import { usePage } from '@inertiajs/react';
 
 /** Shared receipt fields: duplicate check as you type, cheque linking limited to the vendor's cheques. */
-export default function ReceiptFields({ data, set, errors, categories, payee, setPayee, ignoreId, chequeLabel, autoFocus }) {
+export default function ReceiptFields({ data, set, errors, categories, payee, setPayee, ignoreId, chequeLabel, autoFocus, compact = false }) {
     const { auth, app } = usePage().props;
+    // compact (receipt intake): the rarely used linked-cheque and remarks fields stay behind a link, so the form fits the screen.
+    const [more, setMore] = useState(!!(data.cheque_id || data.remarks));
+    useEffect(() => { if (errors.cheque_id || errors.remarks) setMore(true); }, [errors.cheque_id, errors.remarks]);
+    const hideExtras = compact && !more;
     const canOverride = auth.user.permissions.includes('receipts.override_duplicate');
     const [dup, setDup] = useState({ exact: null, similar: [] });
     const [cq, setCq] = useState('');
@@ -54,7 +58,8 @@ export default function ReceiptFields({ data, set, errors, categories, payee, se
                 <Field label="Category" error={errors.category_id}><select className="input" value={data.category_id ?? ''} onChange={(e) => set('category_id', e.target.value)}><option value="">—</option>{categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</select></Field>
                 <Field label="Reference no." error={errors.reference_no}><input className="input" value={data.reference_no ?? ''} onChange={(e) => set('reference_no', e.target.value)} /></Field>
             </div>
-            <Field label="Linked cheque (optional)" error={errors.cheque_id} hint={data.payee_id ? "Search is limited to this vendor's cheques." : 'Pick a vendor first to narrow the list.'}>
+            {hideExtras && <button type="button" onClick={() => setMore(true)} className="text-sm font-medium text-brand-700 hover:underline">+ More options (linked cheque, remarks)</button>}
+            {!hideExtras && <Field label="Linked cheque (optional)" error={errors.cheque_id} hint={data.payee_id ? "Search is limited to this vendor's cheques." : 'Pick a vendor first to narrow the list.'}>
                 {data.cheque_id ? (
                     <div className="input flex items-center justify-between"><span className="truncate">{linkLabel || `Cheque #${data.cheque_id}`}</span><button type="button" onClick={() => { set('cheque_id', ''); setLinkLabel(''); }} className="text-slate-400 hover:text-slate-700"><Icon name="x" className="h-4 w-4" /></button></div>
                 ) : (
@@ -63,11 +68,11 @@ export default function ReceiptFields({ data, set, errors, categories, payee, se
                         {cheques.length > 0 && <ul className="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-lg border border-slate-200 bg-white py-1 shadow-pop">{cheques.map((c) => <li key={c.id} className="cursor-pointer px-3 py-2 text-sm hover:bg-brand-50" onMouseDown={(e) => { e.preventDefault(); set('cheque_id', c.id); setLinkLabel(c.label); setCq(''); setCheques([]); }}>{c.label}</li>)}</ul>}
                     </div>
                 )}
-            </Field>
+            </Field>}
             {dup.exact && canOverride && (
                 <Field label="Duplicate override reason" required error={errors.duplicate_override_reason}><input className="input" value={data.duplicate_override_reason ?? ''} onChange={(e) => set('duplicate_override_reason', e.target.value)} /></Field>
             )}
-            <Field label="Remarks" error={errors.remarks}><textarea className="input" rows={2} value={data.remarks ?? ''} onChange={(e) => set('remarks', e.target.value)} /></Field>
+            {!hideExtras && <Field label="Remarks" error={errors.remarks}><textarea className="input" rows={2} value={data.remarks ?? ''} onChange={(e) => set('remarks', e.target.value)} /></Field>}
         </div>
     );
 }

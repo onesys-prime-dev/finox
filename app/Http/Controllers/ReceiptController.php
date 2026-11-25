@@ -113,6 +113,15 @@ class ReceiptController extends Controller
         return redirect()->route('receipts.show', $receipt)->with('success', 'Receipt updated.');
     }
 
+    /** Remove a wrongly uploaded / unwanted draft from the intake queue. */
+    public function discard(Request $request, Receipt $receipt): RedirectResponse
+    {
+        $this->authorize('discard', $receipt);
+        $this->service->discard($receipt, $request->user());
+
+        return redirect()->route('receipts.create')->with('success', 'Removed from the queue.');
+    }
+
     public function show(Receipt $receipt): Response
     {
         $this->authorize('view', $receipt);

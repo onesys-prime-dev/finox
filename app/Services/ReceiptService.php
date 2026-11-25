@@ -144,6 +144,20 @@ class ReceiptService
         });
     }
 
+    /** Remove an unfinished draft from the intake queue. Nothing is deleted: it is cancelled, with the reason logged. */
+    public function discard(Receipt $r, User $user): Receipt
+    {
+        return DB::transaction(function () use ($r, $user) {
+            $r = Receipt::lockForUpdate()->findOrFail($r->id);
+            if ($r->status !== ReceiptStatus::Draft) {
+                throw ValidationException::withMessages(['status' => 'Only a draft can be removed from the queue.']);
+            }
+            $label = $r->receipt_number ?: "draft #{$r->id}";
+
+            return $this->move($r, ReceiptStatus::Cancelled, $user, 'Removed from intake queue (wrong or unwanted file)', 'receipt.discarded', "Removed {$label} from the intake queue");
+        });
+    }
+
     private function step(Receipt $r, ReceiptStatus $from, ReceiptStatus $to, User $user, string $action, string $desc): Receipt
     {
         return DB::transaction(function () use ($r, $from, $to, $user, $action, $desc) {
