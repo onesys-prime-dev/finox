@@ -5,13 +5,19 @@ namespace App\Http\Controllers;
 use App\Enums\ChequeStatus;
 use App\Models\BankAccount;
 use App\Models\Cheque;
-use App\Models\Payee;
+use App\Models\Receipt;
+use App\Services\ActivityLogService;
 use App\Services\ChequeService;
 use App\Services\DocumentService;
+use App\Services\PrintingService;
 use App\Support\AmountInWords;
+use App\Support\Money;
+use App\Support\Settings;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -111,7 +117,7 @@ class ChequeController extends Controller
                 'upload' => $user->hasPermission('documents.upload'),
             ],
             'preparationErrors' => $cheque->status === ChequeStatus::Draft ? $this->service->preparationErrors($cheque) : [],
-            'staleDays' => (int) \App\Support\Settings::get('stale_days', 180),
+            'staleDays' => (int) Settings::get('stale_days', 180),
         ]);
     }
 
@@ -128,15 +134,15 @@ class ChequeController extends Controller
                 'bank_account' => $cheque->bankAccount?->display_name, 'prepared_by' => $cheque->creator?->name,
                 'lines' => $this->linesPayload($cheque), 'lines_total' => $cheque->linesTotal(),
             ],
-            'org' => \App\Support\Settings::get('org_name'),
+            'org' => Settings::get('org_name'),
             'by' => request()->user()->name,
         ]);
     }
 
-    public function schedulePrinted(Cheque $cheque): \Illuminate\Http\JsonResponse
+    public function schedulePrinted(Cheque $cheque): JsonResponse
     {
         $this->authorize('view', $cheque);
-        \App\Services\ActivityLogService::log('cheque.schedule_printed', 'printing', "Printed breakdown schedule for cheque {$cheque->cheque_number}", $cheque);
+        ActivityLogService::log('cheque.schedule_printed', 'printing', "Printed breakdown schedule for cheque {$cheque->cheque_number}", $cheque);
 
         return response()->json(['ok' => true]);
     }
@@ -193,12 +199,13 @@ class ChequeController extends Controller
         foreach (Cheque::whereIn('id', $ids)->get() as $c) {
             if (! $request->user()->can('prepare', $c)) {
                 $failed[] = "{$c->cheque_number} (not allowed)";
+
                 continue;
             }
             try {
                 $this->service->prepare($c, $request->user());
                 $ok++;
-            } catch (\Illuminate\Validation\ValidationException $e) {
+            } catch (ValidationException $e) {
                 $failed[] = "{$c->cheque_number}: ".collect($e->errors())->flatten()->first();
             }
         }
@@ -238,7 +245,7 @@ class ChequeController extends Controller
             'remarks' => 'nullable|string|max:2000',
             'file' => 'nullable|file',
         ]);
-        \Illuminate\Support\Facades\DB::transaction(function () use ($request, $docs, $cheque, &$data) {
+        DB::transaction(function () use ($request, $docs, $cheque, &$data) {
             $stored = null;
             try {
                 if ($request->hasFile('file')) {
@@ -291,7 +298,7 @@ class ChequeController extends Controller
             $dup = $found ? ['id' => $found->id, 'url' => route('cheques.show', $found), 'status' => $found->status->label()] : null;
         }
         $words = null;
-        if ($request->filled('amount') && ($m = \App\Support\Money::parse($request->amount)) && (float) $m > 0) {
+        if ($request->filled('amount') && ($m = Money::parse($request->amount)) && (float) $m > 0) {
             $words = AmountInWords::convert($m);
         }
 
@@ -336,7 +343,7 @@ class ChequeController extends Controller
     {
         $this->authorize('create', Cheque::class);
         $ignore = (int) $request->ignore;
-        $rows = \App\Models\Receipt::visibleTo($request->user())->with('payee:id,name')
+        $rows = Receipt::visibleTo($request->user())->with('payee:id,name')
             ->whereIn('status', ['recorded', 'verified', 'processed'])
             ->whereDoesntHave('chequeLines', fn ($l) => $l->where('cheque_id', '!=', $ignore)
                 ->whereHas('cheque', fn ($c) => $c->whereNotIn('status', ['cancelled', 'voided'])))
@@ -370,7 +377,7 @@ class ChequeController extends Controller
             ->map(fn ($a) => [
                 'id' => $a->id, 'label' => $a->display_name, 'bank' => $a->bank?->name,
                 'has_template' => (bool) $a->template?->is_active, 'template_id' => $a->print_template_id,
-                'template' => $a->template?->is_active ? app(\App\Services\PrintingService::class)->templatePayload($a->template) : null,
+                'template' => $a->template?->is_active ? app(PrintingService::class)->templatePayload($a->template) : null,
             ])->values();
     }
 
@@ -391,7 +398,7 @@ class ChequeController extends Controller
             'payee_line' => $c->payee_line, 'printed_payee' => $c->printed_payee, 'amount_words' => $c->amount_words,
             'remarks' => $c->remarks, 'stop_payment_note' => $c->stop_payment_note,
             'lines' => $this->linesPayload($c), 'lines_total' => $c->linesTotal(),
-            'lines_mismatch' => $c->lines->isNotEmpty() && $c->linesTotal() !== \App\Support\Money::parse((string) $c->amount),
+            'lines_mismatch' => $c->lines->isNotEmpty() && $c->linesTotal() !== Money::parse((string) $c->amount),
             'created_by' => $c->creator?->name, 'created_at' => $c->created_at->toDateTimeString(),
             'printed_at' => $c->printed_at?->toDateTimeString(), 'has_template' => (bool) $c->bankAccount?->template?->is_active,
             'release' => $c->release ? [

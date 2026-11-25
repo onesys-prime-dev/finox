@@ -25,6 +25,7 @@ class BusinessRulesTest extends TestCase
     use RefreshDatabase;
 
     private array $problems = [];
+
     private int $n = 6000000000;
 
     private function check(string $label, bool $ok, string $detail = ''): void

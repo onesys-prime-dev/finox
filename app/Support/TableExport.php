@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use Barryvdh\DomPDF\Facade\Pdf;
 use OpenSpout\Common\Entity\Row;
 use OpenSpout\Writer\XLSX\Writer as XlsxWriter;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -59,7 +60,7 @@ class TableExport
     /** Neutralise spreadsheet formulas in user-controlled text (CSV injection). */
     private static function safeCell(mixed $v): mixed
     {
-        if (is_string($v) && $v !== '' && ! is_numeric($v) && strpbrk($v[0], "=+-@	") !== false) {
+        if (is_string($v) && $v !== '' && ! is_numeric($v) && strpbrk($v[0], '=+-@	') !== false) {
             return "'".$v;
         }
 
@@ -79,12 +80,11 @@ class TableExport
             }
         }
         $title = ucwords(str_replace(['-', '_'], ' ', $basename));
-        $bytes = \Barryvdh\DomPDF\Facade\Pdf::loadView('exports.table', [
+        $bytes = Pdf::loadView('exports.table', [
             'title' => $title, 'org' => Settings::get('org_name'), 'by' => request()->user()?->name, 'headers' => $headers,
             'rows' => $kept, 'total' => $total, 'numeric' => $numeric,
         ])->setPaper('a4', count($headers) > 6 ? 'landscape' : 'portrait')->output();
 
-        return response()->streamDownload(fn () => print($bytes), $name, ['Content-Type' => 'application/pdf']);
+        return response()->streamDownload(fn () => print ($bytes), $name, ['Content-Type' => 'application/pdf']);
     }
 }
-

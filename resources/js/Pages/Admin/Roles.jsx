@@ -22,7 +22,7 @@ export default function Roles({ roles, permissions }) {
                 <div className="card h-fit p-2">
                     {roles.map((r) => (
                         <button key={r.id} onClick={() => setActiveId(r.id)} className={`w-full rounded-lg px-3 py-2.5 text-left transition ${r.id === activeId ? 'bg-brand-50' : 'hover:bg-slate-50'}`}>
-                            <p className={`text-sm font-medium ${r.id === activeId ? 'text-brand-800' : ''}`}>{r.label}</p><p className="text-xs text-slate-500">{r.users_count} user(s)</p></button>))}
+                            <p className={`text-sm font-medium ${r.id === activeId ? 'text-brand-800' : ''}`}>{r.label}</p><p className="text-xs text-slate-600">{r.users_count} user(s)</p></button>))}
                 </div>
                 <div className="card">
                     <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">

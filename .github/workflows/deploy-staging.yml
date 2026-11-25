@@ -1,0 +1,74 @@
+# Staging deployment: every merge into main (squash merge of a PR) deploys automatically,
+# after the full CI gate has passed for that exact commit in this same run.
+#
+# Direct pushes to main are blocked by the branch ruleset; changes reach main only through
+# pull requests. workflow_dispatch (run from main) re-deploys main's head, or an older commit
+# of main given as "sha".
+name: Deploy staging
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Commit on main to deploy (full SHA). Leave empty for the current head of main.
+        type: string
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  resolve:
+    name: Resolve commit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      sha: ${{ steps.sha.outputs.sha }}
+    steps:
+      - name: Must run from main
+        if: ${{ github.ref != 'refs/heads/main' }}
+        run: |
+          echo "::error::Run this workflow from the main branch (selected: ${GITHUB_REF})."
+          exit 1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { fetch-depth: 0, persist-credentials: false }
+      - name: Resolve and check the commit
+        id: sha
+        env:
+          INPUT_SHA: ${{ inputs.sha }}
+        run: |
+          sha="${INPUT_SHA:-$GITHUB_SHA}"
+          sha=$(git rev-parse --verify "${sha}^{commit}") || { echo "::error::Unknown commit '$INPUT_SHA'"; exit 1; }
+          git merge-base --is-ancestor "$sha" origin/main || { echo "::error::$sha is not on main"; exit 1; }
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "Deploying $(git log -1 --format='%h %s' "$sha")"
+
+  ci:
+    name: CI
+    needs: resolve
+    permissions:
+      contents: read
+      pull-requests: read
+    uses: ./.github/workflows/ci.yml
+    with:
+      ref: ${{ needs.resolve.outputs.sha }}
+    secrets:
+      GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+
+  deploy:
+    name: Staging
+    needs: [resolve, ci]
+    permissions:
+      contents: read
+    uses: ./.github/workflows/deploy-reusable.yml
+    with:
+      environment: staging
+      ref: ${{ needs.resolve.outputs.sha }}
+      artifact: ${{ needs.ci.outputs.artifact }}
+      skip_if_superseded: ${{ github.event_name == 'push' }}
+    # Required: a reusable workflow only sees secrets its caller passes. "inherit" makes the
+    # staging environment's VPS_* secrets available to the job that declares environment: staging.
+    secrets: inherit

@@ -33,9 +33,13 @@ class DemoSeeder extends Seeder
     private ChequeService $cheques;
 
     private User $admin;
+
     private User $finance;
+
     private User $encoder;
+
     private User $printing;
+
     private int $n = 100000;
 
     public function run(): void

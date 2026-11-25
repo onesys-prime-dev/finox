@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Models\ActivityLog;
+use App\Models\Cheque;
+use App\Models\Receipt;
 use App\Models\StatusHistory;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
@@ -74,9 +76,9 @@ class ActivityLogService
     {
         return match (true) {
             $m === null => null,
-            $m instanceof \App\Models\Cheque => 'Cheque '.$m->cheque_number,
-            $m instanceof \App\Models\Receipt => 'Receipt '.($m->receipt_number ?: '#'.$m->id),
-            $m instanceof \App\Models\User => $m->name,
+            $m instanceof Cheque => 'Cheque '.$m->cheque_number,
+            $m instanceof Receipt => 'Receipt '.($m->receipt_number ?: '#'.$m->id),
+            $m instanceof User => $m->name,
             default => class_basename($m).' #'.$m->getKey(),
         };
     }

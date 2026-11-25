@@ -22,7 +22,7 @@ function Bar({ rows, total }) {
                     <span className="w-10 text-right tabular-nums text-slate-600">{r.count}</span>
                 </div>
             ))}
-            {rows.every((r) => r.count === 0) && <p className="py-4 text-center text-sm text-slate-400">Nothing yet.</p>}
+            {rows.every((r) => r.count === 0) && <p className="py-4 text-center text-sm text-slate-500">Nothing yet.</p>}
         </div>
     );
 }
@@ -52,8 +52,8 @@ export default function Dashboard({ queues, stats, recent, filters, accounts, al
                     <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">Work queue</h2>
                     <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
                         {queues.map((q) => (
-                            <Link key={q.label} href={q.url} className={`group rounded-xl border p-4 shadow-card transition hover:-translate-y-0.5 hover:shadow-pop ${TONE[q.tone]} ${q.count === 0 ? 'opacity-70' : ''}`}>
-                                <p className={`text-3xl font-semibold tabular-nums ${q.count ? NUM[q.tone] : 'text-slate-400'}`}>{q.count}</p>
+                            <Link key={q.label} href={q.url} className={`group rounded-xl border p-4 shadow-card transition hover:-translate-y-0.5 hover:shadow-pop ${TONE[q.tone]} `}>
+                                <p className={`text-3xl font-semibold tabular-nums ${q.count ? NUM[q.tone] : 'text-slate-500'}`}>{q.count}</p>
                                 <p className="mt-1 flex items-center justify-between text-sm font-medium text-slate-700">{q.label}<Icon name="arrowRight" className="h-4 w-4 text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-slate-500" /></p>
                             </Link>
                         ))}
@@ -102,7 +102,7 @@ export default function Dashboard({ queues, stats, recent, filters, accounts, al
                             </div>
                         )}
                     </div>
-                    <p className="mt-2 text-xs text-slate-400">Cheque and receipt totals are shown separately and never added together.</p>
+                    <p className="mt-2 text-xs text-slate-500">Cheque and receipt totals are shown separately and never added together.</p>
                 </section>
             )}
 

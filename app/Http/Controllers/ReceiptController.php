@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\DocumentCategory;
 use App\Enums\ReceiptStatus;
 use App\Models\Cheque;
 use App\Models\DocumentFile;
@@ -10,6 +9,8 @@ use App\Models\Receipt;
 use App\Models\ReceiptCategory;
 use App\Services\DocumentService;
 use App\Services\ReceiptService;
+use App\Support\Money;
+use App\Support\Settings;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -57,7 +58,7 @@ class ReceiptController extends Controller
             'categories' => ReceiptCategory::where('is_active', true)->orderBy('name')->get(['id', 'name']),
             'queue' => Receipt::where('created_by', $request->user()->id)->where('status', 'draft')
                 ->with('documents', 'payee:id,name')->orderBy('id')->limit(100)->get()->map(fn ($r) => $this->intakeRow($r))->values(),
-            'maxMb' => (int) \App\Support\Settings::get('max_upload_mb', 10),
+            'maxMb' => (int) Settings::get('max_upload_mb', 10),
         ]);
     }
 
@@ -234,7 +235,7 @@ class ReceiptController extends Controller
             ->when($request->q, fn ($q, $s) => $q->where('cheque_number', 'like', "%{$s}%"))
             ->latest('id')->limit(15)->get();
 
-        return response()->json($rows->map(fn ($c) => ['id' => $c->id, 'label' => "{$c->cheque_number} · {$c->payee?->name} · ".\App\Support\Money::format($c->amount)]));
+        return response()->json($rows->map(fn ($c) => ['id' => $c->id, 'label' => "{$c->cheque_number} · {$c->payee?->name} · ".Money::format($c->amount)]));
     }
 
     private function cancel(Request $request, Receipt $receipt): void
